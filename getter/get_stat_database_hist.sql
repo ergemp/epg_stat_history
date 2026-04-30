@@ -1,6 +1,6 @@
-drop function if exists fv_stats.get_stat_database_hist;
+drop function if exists epg_stats.get_stat_database_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_database_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_database_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     begin_ts bigint,
     end_ts bigint,
@@ -54,12 +54,12 @@ BEGIN
       max(sdh.blk_write_time) - coalesce(min(sdh.blk_write_time),0) AS blk_write_time,      
       max(sdh.stats_reset)      
     from 
-      fv_stats.stat_database_hist  sdh
-    --WHERE sdh.ts IN (select ts from fv_stats.find_interval(g_ts, g_interval))
+      epg_stats.stat_database_hist  sdh
+    --WHERE sdh.ts IN (select ts from epg_stats.find_interval(g_ts, g_interval))
     WHERE sdh.ts BETWEEN
-      (select min(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
     GROUP BY sdh.datid, sdh.datname
     ;    
 END

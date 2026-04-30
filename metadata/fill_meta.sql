@@ -1,15 +1,20 @@
-drop procedure if exists fv_stats.fill_meta();
+drop procedure if exists epg_stats.fill_meta();
 
-CREATE OR replace procedure fv_stats.fill_meta()  as
-$$
+
+CREATE OR REPLACE PROCEDURE epg_stats.fill_meta()
+ LANGUAGE plpgsql
+AS $procedure$
 DECLARE
   currentts bigint;
   pg_version varchar(10);
 BEGIN
 	
+    --select  * from pg_settings where name = 'server_version';
+    select substring(version(), length('PostgreSQL ') + 1, 2) into pg_version;
+
 	currentts := extract(epoch from now()::timestamp with time zone) ;
 
-	execute 'INSERT INTO fv_stats.stat_all_tables_hist 
+	execute 'INSERT INTO epg_stats.stat_all_tables_hist 
 				(
 				  ts ,
 				  relid ,
@@ -61,7 +66,7 @@ BEGIN
 				  autoanalyze_count 
 				FROM pg_stat_all_tables';
 			
-	execute 'INSERT INTO fv_stats.stat_all_indexes_hist 
+	execute 'INSERT INTO epg_stats.stat_all_indexes_hist 
 				(				  
 				  ts ,
 				  relid ,
@@ -85,7 +90,7 @@ BEGIN
 				  idx_tup_fetch 
 				FROM pg_stat_all_indexes';		
 
-	execute 'INSERT INTO fv_stats.statio_all_tables_hist
+	execute 'INSERT INTO epg_stats.statio_all_tables_hist
 				(
 					ts , 
 					relid , 
@@ -115,7 +120,7 @@ BEGIN
 					tidx_blks_hit 
 				FROM pg_statio_all_tables';
 			
-	execute 'INSERT INTO fv_stats.statio_all_indexes_hist
+	execute 'INSERT INTO epg_stats.statio_all_indexes_hist
 				(
 					ts , 
 					relid ,
@@ -137,7 +142,7 @@ BEGIN
 					idx_blks_hit  
 					FROM pg_statio_all_indexes';
 				
-	execute 'INSERT INTO fv_stats.stat_activity_hist 
+	execute 'INSERT INTO epg_stats.stat_activity_hist 
 				(
 				  ts,
 				  datid,
@@ -185,7 +190,7 @@ BEGIN
 				  backend_type
 				FROM pg_stat_activity';	
 			
-	execute 'INSERT INTO fv_stats.stat_archiver_hist
+	execute 'INSERT INTO epg_stats.stat_archiver_hist
 				(
 					ts , 
 					archived_count , 
@@ -207,42 +212,86 @@ BEGIN
 					stats_reset 
 				FROM pg_stat_archiver';
 			
-	execute 'INSERT INTO fv_stats.stat_bgwriter_hist
-				(
-					ts ,
-					checkpoints_timed , 
-					checkpoints_req , 
-					checkpoint_write_time ,
-					checkpoint_sync_time ,
-					buffers_checkpoint ,
-					buffers_clean , 
-					maxwritten_clean , 
-					buffers_backend , 
-					buffers_backend_fsync , 
-					buffers_alloc , 
-					stats_reset 
-				)
-				SELECT 
-					' || currentts || ',
-					checkpoints_timed , 
-					checkpoints_req , 
-					checkpoint_write_time ,
-					checkpoint_sync_time ,
-					buffers_checkpoint ,
-					buffers_clean , 
-					maxwritten_clean , 
-					buffers_backend , 
-					buffers_backend_fsync , 
-					buffers_alloc , 
-					stats_reset 
-				FROM pg_stat_bgwriter';
+    if (cast(pg_version as integer) <= 16) then
+		execute 'INSERT INTO epg_stats.stat_bgwriter_hist
+					(
+						ts ,
+						checkpoints_timed , 
+						checkpoints_req , 
+						checkpoint_write_time ,
+						checkpoint_sync_time ,
+						buffers_checkpoint ,
+						buffers_clean , 
+						maxwritten_clean , 
+						buffers_backend , 
+						buffers_backend_fsync , 
+						buffers_alloc , 
+						stats_reset 
+					)
+					SELECT 
+						' || currentts || ',
+						checkpoints_timed , 
+						checkpoints_req , 
+						checkpoint_write_time ,
+						checkpoint_sync_time ,
+						buffers_checkpoint ,
+						buffers_clean , 
+						maxwritten_clean , 
+						buffers_backend , 
+						buffers_backend_fsync , 
+						buffers_alloc , 
+						stats_reset 
+					FROM pg_stat_bgwriter';
+	elsif (cast(pg_version as integer) >= 16 ) then
+		execute 'INSERT INTO epg_stats.stat_bgwriter_hist
+					(
+						ts ,
+						buffers_clean , 
+						maxwritten_clean , 
+						buffers_alloc , 
+						stats_reset 
+					)
+					SELECT 
+						' || currentts || ',
+						buffers_clean , 
+						maxwritten_clean , 
+						buffers_alloc , 
+						stats_reset 
+					FROM pg_stat_bgwriter';
 
+		execute 'INSERT INTO epg_stats.stat_checkpointer_hist
+					(
+						ts ,
+						num_timed , 
+						num_requested , 
+						num_done , 
+						restartpoints_timed , 
+						restartpoints_req , 
+						restartpoints_done , 
+						write_time , 
+						sync_time , 
+						buffers_written , 
+						slru_written,
+						stats_reset 
+					)
+					SELECT 
+						' || currentts || ',
+						num_timed , 
+						num_requested , 
+						num_done , 
+						restartpoints_timed , 
+						restartpoints_req , 
+						restartpoints_done , 
+						write_time , 
+						sync_time , 
+						buffers_written , 
+						slru_written,
+						stats_reset 
+					FROM pg_stat_checkpointer';
+	end if;
 
-    --select  * from pg_settings where name = 'server_version';
-    select substring(version(), length('PostgreSQL ') + 1, 2) into pg_version;
-   
-    if (pg_version in ('10','11','12') ) then
-		execute 'INSERT INTO fv_stats.stat_statements_hist 
+    if (cast(pg_version as integer) <= 12) then
+		execute 'INSERT INTO epg_stats.stat_statements_hist 
 					(
 						ts ,
 						userid ,
@@ -295,8 +344,8 @@ BEGIN
 						blk_read_time ,
 						blk_write_time 
 					FROM pg_stat_statements';
-	elsif (pg_version in ('13', '14','15') ) then
-		execute 'INSERT INTO fv_stats.stat_statements_hist 
+	elsif (cast(pg_version as integer) >= 13 and cast(pg_version as integer) <= 16) then
+		execute 'INSERT INTO epg_stats.stat_statements_hist 
 					(
 						ts ,
 						userid ,
@@ -304,11 +353,17 @@ BEGIN
 						queryid ,
 						query ,
 						calls ,
-						total_time ,
-						min_time ,
-						max_time ,
-						mean_time ,
-						stddev_time ,
+						plans,
+						total_plan_time,
+						min_plan_time, 
+						max_plan_time, 
+						mean_plan_time,
+						stddev_plan_time, 
+						total_exec_time,
+						min_exec_time, 
+						max_exec_time, 
+						mean_exec_time,
+						stddev_exec_time, 
 						rows ,
 						shared_blks_hit ,
 						shared_blks_read ,
@@ -321,7 +376,10 @@ BEGIN
 						temp_blks_read ,
 						temp_blks_written ,
 						blk_read_time ,
-						blk_write_time 
+						blk_write_time ,
+						wal_records, 
+						wal_fpi,
+						wal_bytes
 					)
 					SELECT 
 						' || currentts || ',
@@ -330,11 +388,17 @@ BEGIN
 						queryid ,
 						query ,
 						calls ,
-						total_exec_time ,
-						min_exec_time ,
-						max_exec_time ,
-						mean_exec_time ,
-						stddev_exec_time ,
+						plans,
+						total_plan_time,
+						min_plan_time, 
+						max_plan_time, 
+						mean_plan_time,
+						stddev_plan_time, 
+						total_exec_time,
+						min_exec_time, 
+						max_exec_time, 
+						mean_exec_time,
+						stddev_exec_time, 
 						rows ,
 						shared_blks_hit ,
 						shared_blks_read ,
@@ -347,11 +411,17 @@ BEGIN
 						temp_blks_read ,
 						temp_blks_written ,
 						blk_read_time ,
-						blk_write_time 
-					FROM pg_stat_statements';	
+						blk_write_time ,
+						wal_records, 
+						wal_fpi,
+						wal_bytes
+					FROM pg_stat_statements';
+	elsif (cast(pg_version as integer) > 16) then
+
+
 	end if;
 
-	execute 'INSERT INTO fv_Stats.stat_locks_hist 
+	execute 'INSERT INTO epg_stats.stat_locks_hist 
 				(
 					ts ,
 					locktype ,
@@ -389,7 +459,7 @@ BEGIN
 					fastpath 
 				FROM pg_locks';
 
-	execute 'INSERT INTO fv_stats.stat_database_hist 
+	execute 'INSERT INTO epg_stats.stat_database_hist 
 				(
 					ts ,
 					datid ,
@@ -435,7 +505,7 @@ BEGIN
 					stats_reset 
 				FROM pg_stat_database';	
 
-	execute 'INSERT INTO fv_stats.pg_settings_hist 
+	execute 'INSERT INTO epg_stats.pg_settings_hist 
 				(
 					ts ,
 					name ,
@@ -450,7 +520,8 @@ BEGIN
 				FROM pg_settings';						
 			
 END
-$$
-LANGUAGE plpgsql
+$procedure$
+;
 
---call fv_stats.fill_meta();
+
+--call epg_stats.fill_meta();

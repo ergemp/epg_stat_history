@@ -1,6 +1,6 @@
-drop FUNCTION IF EXISTS  fv_stats.get_stat_statements_hist;
+drop FUNCTION IF EXISTS  epg_stats.get_stat_statements_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_statements_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_statements_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     begin_ts bigint,
     end_ts bigint,
@@ -35,8 +35,8 @@ DECLARE
   maxts bigint;
 BEGIN
 
-    select min(fb.ts) into mints from fv_stats.find_interval(g_ts, g_interval) fb;
-    select min(fb.ts) into maxts from fv_stats.find_interval(g_ts, g_interval) fb;
+    select min(fb.ts) into mints from epg_stats.find_interval(g_ts, g_interval) fb;
+    select min(fb.ts) into maxts from epg_stats.find_interval(g_ts, g_interval) fb;
 
     RETURN QUERY 
     select * from 
@@ -64,12 +64,12 @@ BEGIN
       max(ssh.blk_read_time) - coalesce(min(ssh.blk_read_time),0) as blk_read_time,
       max(ssh.blk_write_time) - coalesce(min(ssh.blk_write_time),0) as blk_write_time 
     from 
-      fv_stats.stat_statements_hist  ssh
-    --where ssh.ts in (select fb.ts FROM fv_stats.find_between(g_ts) fb)        
+      epg_stats.stat_statements_hist  ssh
+    --where ssh.ts in (select fb.ts FROM epg_stats.find_between(g_ts) fb)        
     where ssh.ts between 
-      (select min(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb)
+      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)
     GROUP BY ssh.userid, ssh.dbid, ssh.queryid, ssh.query
     ) as tt
     where tt.calls > 0

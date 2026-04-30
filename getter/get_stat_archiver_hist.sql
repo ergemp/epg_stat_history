@@ -1,6 +1,6 @@
-drop function IF EXISTS fv_stats.get_stat_archiver_hist;
+drop function IF EXISTS epg_stats.get_stat_archiver_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_archiver_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_archiver_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     begin_ts bigint,
     end_ts bigint,
@@ -26,9 +26,9 @@ BEGIN
       max(sah.last_failed_time),
       max(sah.stats_reset)      
     from 
-      fv_stats.stat_archiver_hist  sah
-    --where sah.ts in (select * FROM fv_stats.find_between(g_ts) fb)   
-    WHERE sah.ts IN (select ts from fv_stats.find_interval(g_ts, g_interval))
+      epg_stats.stat_archiver_hist  sah
+    --where sah.ts in (select * FROM epg_stats.find_between(g_ts) fb)   
+    WHERE sah.ts IN (select ts from epg_stats.find_interval(g_ts, g_interval))
     ;    
 END
 $$

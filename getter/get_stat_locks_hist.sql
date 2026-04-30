@@ -1,6 +1,6 @@
-drop function IF EXISTS fv_stats.get_stat_locks_hist;
+drop function IF EXISTS epg_stats.get_stat_locks_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_locks_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_locks_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     ts bigint,
     locktype text,
@@ -31,11 +31,11 @@ BEGIN
       slh. granted, slh.fastpath
     from 
       fv_stats.stat_locks_hist  slh
-    --WHERE slh.ts IN (select fb.ts from fv_stats.find_interval(g_ts, g_interval) fb)
+    --WHERE slh.ts IN (select fb.ts from epg_stats.find_interval(g_ts, g_interval) fb)
     WHERE slh.ts BETWEEN
-      (select min(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb)   
+      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)   
     ;    
 END
 $$

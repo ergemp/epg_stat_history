@@ -1,6 +1,6 @@
-drop FUNCTION IF exists fv_stats.get_stat_activity_hist;
+drop FUNCTION IF exists epg_stats.get_stat_activity_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_activity_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_activity_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     ts bigint,
     datid oid,
@@ -31,8 +31,8 @@ DECLARE
   maxts bigint;
 BEGIN
 
-    select min(fb.ts) into mints from fv_stats.find_interval(g_ts, g_interval) fb;
-    select min(fb.ts) into maxts from fv_stats.find_interval(g_ts, g_interval) fb;
+    select min(fb.ts) into mints from epg_stats.find_interval(g_ts, g_interval) fb;
+    select min(fb.ts) into maxts from epg_stats.find_interval(g_ts, g_interval) fb;
 
     RETURN QUERY 
     select 
@@ -44,11 +44,11 @@ BEGIN
       sah.backend_xid, sah.backend_xmin, sah.query, 
       sah.backend_type 
     from 
-      fv_stats.stat_activity_hist sah
+      epg_stats.stat_activity_hist sah
     where sah.ts between
-      (select min(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb)                       
+      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)                       
     ;    
 END
 $$

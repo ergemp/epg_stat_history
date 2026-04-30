@@ -1,6 +1,6 @@
-drop function if exists fv_stats.find_between(bigint);
+drop function if exists epg_stats.find_between(bigint);
 
-CREATE OR replace FUNCTION fv_stats.find_between(g_ts bigint) RETURNS TABLE (ts bigint) AS 
+CREATE OR replace FUNCTION epg_stats.find_between(g_ts bigint) RETURNS TABLE (ts bigint) AS 
 $$
 DECLARE 
   l_ts bigint;
@@ -10,19 +10,19 @@ DECLARE
 BEGIN    
   act_ts := g_ts; 
   
-  SELECT max(sah.ts) INTO max_ts FROM fv_stats.stat_activity_hist sah;
-  SELECT max(sah.ts) INTO prev_ts FROM fv_stats.stat_activity_hist sah WHERE sah.ts < max_ts;
+  SELECT max(sah.ts) INTO max_ts FROM epg_stats.stat_activity_hist sah;
+  SELECT max(sah.ts) INTO prev_ts FROM epg_stats.stat_activity_hist sah WHERE sah.ts < max_ts;
   
   IF max_ts <= g_ts THEN 
     act_ts := (prev_ts + max_ts)/2;
   END IF;
   
-  select sah.ts INTO ts from fv_stats.stat_activity_hist sah where sah.ts >= act_ts order by ts asc limit 1;
+  select sah.ts INTO ts from epg_stats.stat_activity_hist sah where sah.ts >= act_ts order by ts asc limit 1;
   RETURN next;
-  select sah.ts INTO ts from fv_stats.stat_activity_hist sah where sah.ts <= act_ts order by ts desc limit 1;
+  select sah.ts INTO ts from epg_stats.stat_activity_hist sah where sah.ts <= act_ts order by ts desc limit 1;
   RETURN NEXT;
 END
 $$
 LANGUAGE plpgsql
 
---select to_timestamp(fv_stats.find_between(1606112710));
+--select to_timestamp(epg_stats.find_between(1606112710));

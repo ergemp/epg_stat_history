@@ -22,7 +22,7 @@ psql -d $1 -f util/find_between.sql
 psql -d $1 -f util/find_interval.sql
 
 # create meta tables 
-psql -d $1 -c "call fv_stats.create_meta();"
+psql -d $1 -c "call epg_stats.create_meta();"
 
 # install getter functions 
 psql -d $1 -f getter/get_stat_activity_hist.sql

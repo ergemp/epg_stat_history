@@ -1,1 +1,1 @@
-drop schema fv_stats cascade;
+drop schema epg_stats cascade;

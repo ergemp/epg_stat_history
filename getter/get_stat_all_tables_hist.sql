@@ -1,6 +1,6 @@
-drop function IF EXISTS fv_stats.get_stat_all_tables_hist;
+drop function IF EXISTS epg_stats.get_stat_all_tables_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_all_tables_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_all_tables_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     begin_ts bigint,
     end_ts bigint,
@@ -53,11 +53,11 @@ BEGIN
       max(sath.analyze_count) as analyze_count,
       max(sath.autoanalyze_count) as autoanalyze_count
     from 
-      fv_stats.stat_all_tables_hist  sath
+      epg_stats.stat_all_tables_hist  sath
     WHERE sath.ts between 
-      (select min(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb)     
+      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)     
       --and sath.relname in ('pg_namespace')
     group by sath.relid, sath.schemaname, sath.relname;
     

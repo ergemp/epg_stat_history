@@ -1,10 +1,13 @@
-CREATE OR replace procedure fv_stats.create_meta()  as
-$$
+-- DROP PROCEDURE epg_stats.create_meta();
+
+CREATE OR REPLACE PROCEDURE epg_stats.create_meta()
+ LANGUAGE plpgsql
+AS $procedure$
 DECLARE
 
 BEGIN
 
-	EXECUTE 'create table if not exists fv_stats.stat_all_tables_hist
+	EXECUTE 'create table if not exists epg_stats.stat_all_tables_hist
 				(
 				  ts bigint,
 				  relid oid,
@@ -30,9 +33,9 @@ BEGIN
 				  analyze_count bigint, 
 				  autoanalyze_count bigint
 				)';			
-	EXECUTE 'create index if not exists ix_stat_all_tables_hist on fv_stats.stat_all_tables_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_all_tables_hist on epg_stats.stat_all_tables_hist(ts)';
 
-    EXECUTE 'create table if not exists fv_stats.stat_all_indexes_hist
+    EXECUTE 'create table if not exists epg_stats.stat_all_indexes_hist
 				(
 				  ts bigint,
 				  relid oid,
@@ -44,9 +47,9 @@ BEGIN
 				  idx_tup_read bigint, 
 				  idx_tup_fetch bigint
 				)';			
-	EXECUTE 'create index if not exists ix_stat_all_indexes_hist on fv_stats.stat_all_indexes_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_all_indexes_hist on epg_stats.stat_all_indexes_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.statio_all_tables_hist 
+	EXECUTE 'create table if not exists epg_stats.statio_all_tables_hist 
 				(
 					ts bigint, 
 					relid oid, 
@@ -61,9 +64,9 @@ BEGIN
 					tidx_blks_read bigint, 
 					tidx_blks_hit bigint
 			 	)';
-	EXECUTE 'create index if not exists ix_statio_all_tables_hist on fv_stats.statio_all_tables_hist(ts)';
+	EXECUTE 'create index if not exists ix_statio_all_tables_hist on epg_stats.statio_all_tables_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.statio_all_indexes_hist 
+	EXECUTE 'create table if not exists epg_stats.statio_all_indexes_hist 
 				(
 					ts bigint, 
 					relid oid, 
@@ -74,9 +77,9 @@ BEGIN
 					idx_blks_read bigint, 
 					idx_blks_hit bigint
 			 	)';
-	EXECUTE 'create index if not exists ix_statio_all_indexes_hist on fv_stats.statio_all_indexes_hist(ts)';
+	EXECUTE 'create index if not exists ix_statio_all_indexes_hist on epg_stats.statio_all_indexes_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.stat_activity_hist 
+	EXECUTE 'create table if not exists epg_stats.stat_activity_hist 
 				(
 					ts bigint, 
 					datid oid, 
@@ -100,9 +103,9 @@ BEGIN
 					query text,
 					backend_type text
 			 	)';
-	EXECUTE 'create index if not exists ix_stat_activity_hist on fv_stats.stat_activity_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_activity_hist on epg_stats.stat_activity_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.stat_archiver_hist 
+	EXECUTE 'create table if not exists epg_stats.stat_archiver_hist 
 				(
 					ts bigint, 
 					archived_count bigint, 
@@ -113,9 +116,9 @@ BEGIN
 					last_failed_time timestamp with time zone, 
 					stats_reset timestamp with time zone
 			 	)';
-	EXECUTE 'create index if not exists ix_stat_archiver_hist on fv_stats.stat_archiver_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_archiver_hist on epg_stats.stat_archiver_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.stat_bgwriter_hist 
+	EXECUTE 'create table if not exists epg_stats.stat_bgwriter_hist 
 				(
 					ts bigint,
 					checkpoints_timed bigint, 
@@ -130,9 +133,9 @@ BEGIN
 					buffers_alloc bigint, 
 					stats_reset timestamp with time zone 
 			 	)';
-	EXECUTE 'create index if not exists ix_stat_bgwriter_hist on fv_stats.stat_bgwriter_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_bgwriter_hist on epg_stats.stat_bgwriter_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.stat_statements_hist 
+	EXECUTE 'create table if not exists epg_stats.stat_statements_hist 
 				(
 					ts bigint,
 					userid oid,
@@ -159,9 +162,9 @@ BEGIN
 					blk_read_time double precision,
 					blk_write_time double precision					
 			 	)';
-	EXECUTE 'create index if not exists ix_stat_statements_hist on fv_stats.stat_statements_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_statements_hist on epg_stats.stat_statements_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.stat_locks_hist 
+	EXECUTE 'create table if not exists epg_stats.stat_locks_hist 
 				(
 					ts bigint,
 					locktype text,
@@ -180,9 +183,9 @@ BEGIN
 					granted boolean, 
 					fastpath boolean
 			 	)';
-	EXECUTE 'create index if not exists ix_stat_locks_hist on fv_stats.stat_locks_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_locks_hist on epg_stats.stat_locks_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.stat_database_hist 
+	EXECUTE 'create table if not exists epg_stats.stat_database_hist 
 				(
 					ts bigint,
 					datid oid,
@@ -207,19 +210,34 @@ BEGIN
 					blk_write_time double precision,
 					stats_reset timestamp with time zone
 			 	)';
-	EXECUTE 'create index if not exists ix_stat_database_hist on fv_stats.stat_database_hist(ts)';
+	EXECUTE 'create index if not exists ix_stat_database_hist on epg_stats.stat_database_hist(ts)';
 
-	EXECUTE 'create table if not exists fv_stats.pg_settings_hist 
+	EXECUTE 'create table if not exists epg_stats.pg_settings_hist 
 				(
 					ts bigint,
 					name text,
 					setting text,
 					category text
 			 	)';
-	EXECUTE 'create index if not exists ix_pg_setings_hist on fv_stats.pg_settings_hist(ts)';	
+	EXECUTE 'create index if not exists ix_pg_setings_hist on epg_stats.pg_settings_hist(ts)';	
+
+	EXECUTE 'create table if not exists epg_stats.stat_checkpointer_hist
+				(
+				ts int8,
+				num_timed int8,
+				num_requested int8,
+				num_done int8, 
+				restartpoints_timed int8,
+				restartpoints_req int8, 
+				restartpoints_done int8, 
+				write_time int8,
+				sync_time int8,
+				buffers_written int8,
+				slru_written int8,
+				stats_reset timestamptz
+				)';
+	execute 'create index if not exists ix_stat_checkpointer_hist ON epg_stats.stat_checkpointer_hist USING btree (ts)';
 
 END;
-$$
-language plpgsql
-
---call fv_stats.create_meta();
+$procedure$
+;

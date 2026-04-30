@@ -1,6 +1,6 @@
-DROP FUNCTION IF EXISTS fv_stats.show_report(bigint, interval);
+DROP FUNCTION IF EXISTS epg_stats.show_report(bigint, interval);
 
-CREATE OR replace PROCEDURE fv_stats.show_report(g_ts bigint, g_interval interval) AS 
+CREATE OR replace PROCEDURE epg_stats.show_report(g_ts bigint, g_interval interval) AS 
 $$
 DECLARE 
   act_ts bigint;
@@ -64,7 +64,7 @@ begin
       totalreadtimesec,
       totalwritetimesec,
       statslastreset
-    from fv_stats.get_stat_database_hist(g_ts, g_interval)
+    from epg_stats.get_stat_database_hist(g_ts, g_interval)
     where datname = current_database();
 
     select pg_size_pretty(pg_database_size(current_database())) into databasesize;
@@ -132,7 +132,7 @@ begin
         format('%-50s',wait_event) as wait_event, 
         --to_char(count(*), 'FM0G000') as total_waits
         count(*) as total_waits
-      from fv_stats.get_stat_activity_hist(g_ts, g_interval) 
+      from epg_stats.get_stat_activity_hist(g_ts, g_interval) 
       where wait_event_type is not null
       group by wait_event_type, wait_event
       order by 3 desc
@@ -151,12 +151,12 @@ begin
     SELECT 
       round(100 * sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)),2) into tablecachehitratio
     FROM 
-      fv_stats.get_statio_all_tables_hist(g_ts, g_interval);
+      epg_stats.get_statio_all_tables_hist(g_ts, g_interval);
   
     SELECT 
       round(100 * sum(idx_blks_hit) / (sum(idx_blks_hit) + sum(idx_blks_read)),2) into indexcachehitratio
     FROM 
-      fv_stats.get_statio_all_indexes_hist(g_ts, g_interval);  
+      epg_stats.get_statio_all_indexes_hist(g_ts, g_interval);  
   
 	raise notice '------------------ %', chr(10);
     raise notice 'Memory Efficiency  %', chr(10);
@@ -196,7 +196,7 @@ begin
         idx_scan, 
         seq_tup_read, 
         idx_tup_fetch 
-      from fv_stats.get_stat_all_tables_hist(g_ts, g_interval)
+      from epg_stats.get_stat_all_tables_hist(g_ts, g_interval)
       where schemaname not in ('information_schema','pg_catalog','pg_toast')
         AND idx_scan IS NOT NULL
         AND seq_scan IS NOT NULL
@@ -243,7 +243,7 @@ begin
           SELECT  'all'::text as table_name, 
               sum( (coalesce(heap_blks_read,0) + coalesce(idx_blks_read,0) + coalesce(toast_blks_read,0) + coalesce(tidx_blks_read,0)) ) as from_disk, 
               sum( (coalesce(heap_blks_hit,0)  + coalesce(idx_blks_hit,0)  + coalesce(toast_blks_hit,0)  + coalesce(tidx_blks_hit,0))  ) as from_cache    
-          FROM    fv_stats.get_statio_all_tables_hist(g_ts, g_interval)  
+          FROM    epg_stats.get_statio_all_tables_hist(g_ts, g_interval)  
           ) a
       WHERE   (from_disk + from_cache) > 0 -- discard tables without hits
       ),
@@ -254,7 +254,7 @@ begin
           SELECT  relname as table_name, 
               ( (coalesce(heap_blks_read,0) + coalesce(idx_blks_read,0) + coalesce(toast_blks_read,0) + coalesce(tidx_blks_read,0)) ) as from_disk, 
               ( (coalesce(heap_blks_hit,0)  + coalesce(idx_blks_hit,0)  + coalesce(toast_blks_hit,0)  + coalesce(tidx_blks_hit,0))  ) as from_cache    
-          FROM    fv_stats.get_statio_all_tables_hist(g_ts, g_interval) 
+          FROM    epg_stats.get_statio_all_tables_hist(g_ts, g_interval) 
           ) a
       WHERE   (from_disk + from_cache) > 0 -- discard tables without hits
       )
@@ -310,7 +310,7 @@ begin
           --substring(replace(query,chr(10),' '),0,200) AS query
           substring(replace(query,chr(10),' '),0,200) AS query
         FROM
-          fv_stats.get_stat_statements_hist(g_ts, g_interval)    
+          epg_stats.get_stat_statements_hist(g_ts, g_interval)    
         WHERE
            temp_blks_written > 0
         ORDER BY
@@ -368,7 +368,7 @@ begin
           temp_blks_read, temp_blks_written, 
           blk_read_time, blk_write_time, userid, queryid,
           substring(replace(replace(query,chr(10),' '),chr(13),' '),0,200) AS query
-        from fv_stats.get_stat_statements_hist(g_ts, g_interval) 
+        from epg_stats.get_stat_statements_hist(g_ts, g_interval) 
         order by 1 desc
         limit 20
     loop
@@ -558,7 +558,7 @@ begin
    				; 
    			
     FOR general_params_curr IN
-        SELECT name, setting, category FROM fv_stats.get_pg_settings_hist(g_ts, g_interval) where name in ('listen_address','port','max_connections','shared_buffers','wal_buffers',
+        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval) where name in ('listen_address','port','max_connections','shared_buffers','wal_buffers',
                                                               'temp_buffers', 'maintenance_work_mem', 'autovacuum_work_mem','effective_cache_size',
                                                               'superuser_reserved_connections','authentication_timeout',
                                                               'update_process_title','cluster_name' )
@@ -585,7 +585,7 @@ begin
    				; 
    			   
     FOR autovacuum_params_curr IN
-        SELECT name, setting, category FROM fv_stats.get_pg_settings_hist(g_ts, g_interval) where name in ( 'autovacuum_freeze_max_age','autovacuum_max_workers','autovacuum_naptime',
+        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval) where name in ( 'autovacuum_freeze_max_age','autovacuum_max_workers','autovacuum_naptime',
                                         'autovacuum_vacuum_cost_delay','maintenance_work_mem','vacuum_freeze_min_age',
                                         'autovacuum_vacuum_cost_limit','autovacuum_vacuum_cost_delay',
                                         'vacuum_cost_page_hit', 'vacuum_cost_page_miss', 'vacuum_cost_page_dirty',
@@ -614,7 +614,7 @@ begin
    				; 
    
     FOR parallel_params_curr IN
-        SELECT name, setting, category FROM fv_stats.get_pg_settings_hist(g_ts, g_interval) where name in ('max_worker_processes','max_parallel_workers','max_parallel_workers_per_gather',
+        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval) where name in ('max_worker_processes','max_parallel_workers','max_parallel_workers_per_gather',
                                                                'parallel_setup_cost','parallel_tuple_cost','min_parallel_table_scan_size','min_parallel_index_scan_size',
                                                                'force_parallel_mode','work_mem','maintenance_work_mem')
     loop
@@ -640,7 +640,7 @@ begin
 	   				; 
    			
     FOR wal_params_curr IN
-        SELECT name, setting, category FROM fv_stats.get_pg_settings_hist(g_ts, g_interval)
+        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval)
           where name in ('fsync','wal_sync_method','synchronous_commit','wal_writer_delay', 'wal_writer_delay', 'wal_writer_flush_after',
                  'checkpoint_timeout','checkpoint_completion_target','checkpoint_flush_after','max_wal_size','commit_delay',
                  'wal_recycle','wal_compression','full_page_writes','wal_level')
@@ -660,4 +660,4 @@ END;
 $$
 LANGUAGE plpgsql
 
---call fv_stats.generate_report (cast(extract (epoch from now()) as bigint), INTERVAL '30 min', 'awr.txt');
+--call epg_stats.generate_report (cast(extract (epoch from now()) as bigint), INTERVAL '30 min', 'awr.txt');

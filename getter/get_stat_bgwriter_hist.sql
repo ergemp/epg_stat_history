@@ -1,6 +1,6 @@
-drop function if exists fv_stats.get_stat_bgwriter_hist;
+drop function if exists epg_stats.get_stat_bgwriter_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_bgwriter_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_bgwriter_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     begin_ts bigint,
     end_ts bigint,
@@ -34,9 +34,9 @@ BEGIN
       max(sbh.buffers_alloc) - min(sbh.buffers_alloc) AS buffers_alloc,      
       max(sbh.stats_reset)      
     from 
-      fv_stats.stat_bgwriter_hist  sbh
-    --where sbh.ts in (select * FROM fv_stats.find_between(g_ts) fb)      
-    WHERE sbh.ts IN (select ts from fv_stats.find_interval(g_ts, g_interval))
+      epg_stats.stat_bgwriter_hist  sbh
+    --where sbh.ts in (select * FROM epg_stats.find_between(g_ts) fb)      
+    WHERE sbh.ts IN (select ts from epg_stats.find_interval(g_ts, g_interval))
     ;    
 END
 $$

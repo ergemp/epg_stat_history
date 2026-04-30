@@ -1,6 +1,6 @@
-drop function IF EXISTS fv_stats.get_stat_all_indexes_hist;
+drop function IF EXISTS epg_stats.get_stat_all_indexes_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_stat_all_indexes_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_stat_all_indexes_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     begin_ts bigint,
     end_ts bigint,
@@ -25,11 +25,11 @@ BEGIN
       abs(max(saih.idx_tup_read) - coalesce(min(saih.idx_tup_read),0)) as idx_tup_read,
       abs(max(saih.idx_tup_fetch) - coalesce(min(saih.idx_tup_fetch),0))  as idx_tup_fetch
     from 
-      fv_stats.stat_all_indexes_hist  saih
+      epg_stats.stat_all_indexes_hist  saih
     WHERE saih.ts BETWEEN
-      (select min(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb)    
+      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)    
       --and sath.relname in ('pg_namespace')
     group by saih.relid, saih.indexrelid, saih.schemaname, saih.relname, saih.indexrelname ;
     

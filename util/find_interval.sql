@@ -1,6 +1,6 @@
-drop function if exists fv_stats.find_interval(bigint, interval);
+drop function if exists epg_stats.find_interval(bigint, interval);
 
-CREATE OR replace FUNCTION fv_stats.find_interval(g_ts bigint, g_interval interval) RETURNS TABLE (ts bigint) AS 
+CREATE OR replace FUNCTION epg_stats.find_interval(g_ts bigint, g_interval interval) RETURNS TABLE (ts bigint) AS 
 $$
 DECLARE 
   act_ts bigint;
@@ -12,12 +12,12 @@ BEGIN
   --SELECT min(ts), min(to_timestamp(ts)) FROM fv_stats.find_between(cast(extract (epoch from (now()-interval '1 hour')) as bigint));
   --SELECT max(ts), max(to_timestamp(ts)) FROM fv_stats.find_between(cast(extract (epoch from (now())) as bigint));
   
-  SELECT min(fb.ts) INTO begin_ts FROM fv_stats.find_between(cast(extract (epoch from (to_timestamp(g_ts)-g_interval)) as bigint)) fb;
-  SELECT max(fb.ts) INTO end_ts FROM fv_stats.find_between(cast(extract (epoch from (to_timestamp(g_ts))) as bigint)) fb;
+  SELECT min(fb.ts) INTO begin_ts FROM epg_stats.find_between(cast(extract (epoch from (to_timestamp(g_ts)-g_interval)) as bigint)) fb;
+  SELECT max(fb.ts) INTO end_ts FROM epg_stats.find_between(cast(extract (epoch from (to_timestamp(g_ts))) as bigint)) fb;
 
   if (begin_ts = end_ts) then 
-    select min(sah.ts) into begin_ts from fv_stats.stat_activity_hist sah;
-    select max(sah.ts) into begin_ts from fv_stats.stat_activity_hist sah;
+    select min(sah.ts) into begin_ts from epg_stats.stat_activity_hist sah;
+    select max(sah.ts) into begin_ts from epg_stats.stat_activity_hist sah;
   end if;
 
   ts := begin_ts;

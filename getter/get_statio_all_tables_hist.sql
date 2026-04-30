@@ -1,6 +1,6 @@
-drop function If EXISTS fv_stats.get_statio_all_tables_hist;
+drop function If EXISTS epg_stats.get_statio_all_tables_hist;
 
-CREATE OR replace FUNCTION fv_stats.get_statio_all_tables_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
+CREATE OR replace FUNCTION epg_stats.get_statio_all_tables_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
 (
     begin_ts bigint,
     end_ts bigint,
@@ -33,11 +33,11 @@ BEGIN
       abs(max(sath.tidx_blks_read) - coalesce(min(sath.tidx_blks_read),0)) as tidx_blks_read,
       abs(max(sath.tidx_blks_hit) - coalesce(min(sath.tidx_blks_hit),0)) as tidx_blks_hit
     from 
-      fv_stats.statio_all_tables_hist  sath
+      epg_stats.statio_all_tables_hist  sath
       WHERE sath.ts BETWEEN
-      (select min(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from fv_stats.find_interval(g_ts, g_interval) fb)        
+      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)        
       --and sath.relname in ('pg_namespace')
     group by sath.relid, sath.schemaname, sath.relname;
     
