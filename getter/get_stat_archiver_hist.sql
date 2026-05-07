@@ -1,19 +1,9 @@
-drop function IF EXISTS epg_stats.get_stat_archiver_hist;
+-- DROP FUNCTION epg_stats.get_stat_archiver_hist(int8, interval);
 
-CREATE OR replace FUNCTION epg_stats.get_stat_archiver_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
-(
-    begin_ts bigint,
-    end_ts bigint,
-    archived_count bigint,
-    last_archived_wal text,
-    last_archived_time timestamp with time zone,
-    failed_count bigint,
-    last_failed_wal text,
-    last_failed_time timestamp with time zone,
-    stats_reset timestamp with time zone
-)
-AS 
-$$
+CREATE OR REPLACE FUNCTION epg_stats.get_stat_archiver_hist(g_ts bigint, g_interval interval)
+ RETURNS TABLE(begin_ts bigint, end_ts bigint, archived_count bigint, last_archived_wal text, last_archived_time timestamp with time zone, failed_count bigint, last_failed_wal text, last_failed_time timestamp with time zone, stats_reset timestamp with time zone)
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
     RETURN QUERY 
     select 
@@ -27,9 +17,8 @@ BEGIN
       max(sah.stats_reset)      
     from 
       epg_stats.stat_archiver_hist  sah
-    --where sah.ts in (select * FROM epg_stats.find_between(g_ts) fb)   
-    WHERE sah.ts IN (select ts from epg_stats.find_interval(g_ts, g_interval))
+    WHERE sah.ts IN (select ts from epg_stats.find_interval_boundaries(g_ts, g_interval))
     ;    
 END
-$$
-LANGUAGE plpgsql
+$function$
+;

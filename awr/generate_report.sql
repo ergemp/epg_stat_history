@@ -1,7 +1,8 @@
 DROP FUNCTION IF EXISTS epg_stats.generate_report(bigint, interval, text);
 
-CREATE OR replace PROCEDURE epg_stats.generate_report(g_ts bigint, g_interval interval, g_filename text) AS 
-$$
+CREATE OR REPLACE PROCEDURE epg_stats.generate_report(IN g_ts bigint, IN g_interval interval, IN g_filename text)
+ LANGUAGE plpgsql
+AS $procedure$
 DECLARE 
   act_ts bigint;
   begin_time timestamp;
@@ -600,7 +601,7 @@ begin
     perform pg_catalog.pg_file_write(g_filename, '-------------------- ' || chr(10) || chr(10) , true)  ;       
 
 END;
-$$
-LANGUAGE plpgsql
+$procedure$
+;
 
 --call epg_stats.generate_report (cast(extract (epoch from now()) as bigint), INTERVAL '30 min', 'awr.txt');

@@ -1,33 +1,9 @@
-drop function if exists epg_stats.get_stat_database_hist;
+-- DROP FUNCTION epg_stats.get_stat_database_hist(int8, interval);
 
-CREATE OR replace FUNCTION epg_stats.get_stat_database_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
-(
-    begin_ts bigint,
-    end_ts bigint,
-    datid oid,
-    datname character varying,
-    numbackends integer,
-    xact_commit bigint,
-    xact_rollback bigint,
-    blks_read bigint,
-    blks_hit bigint,
-    tup_returned bigint,
-    tup_fetched bigint,
-    tup_inserted bigint,
-    tup_updated bigint,
-    tup_deleted bigint,
-    conflicts bigint,
-    temp_files bigint,
-    temp_bytes bigint,
-    deadlocks bigint,
-    checksum_failures bigint,
-    checksum_last_failure timestamp with time zone,
-    blk_read_time double precision,
-    blk_write_time double precision,
-    stats_reset timestamp with time zone
-)
-AS 
-$$
+CREATE OR REPLACE FUNCTION epg_stats.get_stat_database_hist(g_ts bigint, g_interval interval)
+ RETURNS TABLE(begin_ts bigint, end_ts bigint, datid oid, datname character varying, numbackends integer, xact_commit bigint, xact_rollback bigint, blks_read bigint, blks_hit bigint, tup_returned bigint, tup_fetched bigint, tup_inserted bigint, tup_updated bigint, tup_deleted bigint, conflicts bigint, temp_files bigint, temp_bytes bigint, deadlocks bigint, checksum_failures bigint, checksum_last_failure timestamp with time zone, blk_read_time double precision, blk_write_time double precision, stats_reset timestamp with time zone)
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
     RETURN QUERY 
     select 
@@ -55,13 +31,15 @@ BEGIN
       max(sdh.stats_reset)      
     from 
       epg_stats.stat_database_hist  sdh
-    --WHERE sdh.ts IN (select ts from epg_stats.find_interval(g_ts, g_interval))
-    WHERE sdh.ts BETWEEN
-      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
+      WHERE sdh.ts IN (select ts from epg_stats.find_interval_boundaries(g_ts, g_interval))
+    /*
+	WHERE sdh.ts BETWEEN
+      (select min(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
+      (select max(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
+    */
     GROUP BY sdh.datid, sdh.datname
     ;    
 END
-$$
-LANGUAGE plpgsql
+$function$
+;

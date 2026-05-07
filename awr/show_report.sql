@@ -1,7 +1,8 @@
-DROP FUNCTION IF EXISTS epg_stats.show_report(bigint, interval);
+-- DROP PROCEDURE epg_stats.show_report(int8, interval);
 
-CREATE OR replace PROCEDURE epg_stats.show_report(g_ts bigint, g_interval interval) AS 
-$$
+CREATE OR REPLACE PROCEDURE epg_stats.show_report(IN g_ts bigint, IN g_interval interval)
+ LANGUAGE plpgsql
+AS $procedure$
 DECLARE 
   act_ts bigint;
   begin_time timestamp;
@@ -657,7 +658,8 @@ begin
     raise notice '-------------------- % %', chr(10), chr(10);     
 
 END;
-$$
-LANGUAGE plpgsql
+$procedure$
+;
+
 
 --call epg_stats.generate_report (cast(extract (epoch from now()) as bigint), INTERVAL '30 min', 'awr.txt');

@@ -1,26 +1,9 @@
-drop function IF EXISTS epg_stats.get_stat_locks_hist;
+-- DROP FUNCTION epg_stats.get_stat_locks_hist(int8, interval);
 
-CREATE OR replace FUNCTION epg_stats.get_stat_locks_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
-(
-    ts bigint,
-    locktype text,
-    database oid,
-    relation oid,
-    page integer,
-    tuple smallint,
-    virtualxid text,
-    transactionid xid,
-    classid oid,
-    objid oid,
-    objsubid smallint,
-    virtualtransaction text,
-    pid integer,
-    mode text,
-    granted boolean,
-    fastpath boolean
-)
-AS 
-$$
+CREATE OR REPLACE FUNCTION epg_stats.get_stat_locks_hist(g_ts bigint, g_interval interval)
+ RETURNS TABLE(ts bigint, locktype text, database oid, relation oid, page integer, tuple smallint, virtualxid text, transactionid xid, classid oid, objid oid, objsubid smallint, virtualtransaction text, pid integer, mode text, granted boolean, fastpath boolean)
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
     RETURN QUERY 
     select 
@@ -31,12 +14,11 @@ BEGIN
       slh. granted, slh.fastpath
     from 
       fv_stats.stat_locks_hist  slh
-    --WHERE slh.ts IN (select fb.ts from epg_stats.find_interval(g_ts, g_interval) fb)
     WHERE slh.ts BETWEEN
-      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)   
+      (select max(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb)   
     ;    
 END
-$$
-LANGUAGE plpgsql
+$function$
+;

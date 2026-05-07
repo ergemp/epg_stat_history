@@ -1,34 +1,9 @@
-drop function IF EXISTS epg_stats.get_stat_all_tables_hist;
+-- DROP FUNCTION epg_stats.get_stat_all_tables_hist(int8, interval);
 
-CREATE OR replace FUNCTION epg_stats.get_stat_all_tables_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
-(
-    begin_ts bigint,
-    end_ts bigint,
-    relid oid,
-    schemaname character varying,
-    relname character varying,
-    seq_scan bigint,
-    seq_tup_read bigint,
-    idx_scan bigint,
-    idx_tup_fetch bigint,
-    n_tup_ins bigint,
-    n_tup_upd bigint,
-    n_tup_del bigint,
-    n_tup_hot_upd bigint,
-    n_live_tup bigint,
-    n_dead_tup bigint,
-    n_mod_since_analyze bigint,
-    last_vacuum timestamp with time zone,
-    last_autovacuum timestamp with time zone,
-    last_analyze timestamp with time zone,
-    last_autoanalyze timestamp with time zone,
-    vacuum_count bigint,
-    autovacuum_count bigint,
-    analyze_count bigint,
-    autoanalyze_count bigint
-)
-AS 
-$$
+CREATE OR REPLACE FUNCTION epg_stats.get_stat_all_tables_hist(g_ts bigint, g_interval interval)
+ RETURNS TABLE(begin_ts bigint, end_ts bigint, relid oid, schemaname character varying, relname character varying, seq_scan bigint, seq_tup_read bigint, idx_scan bigint, idx_tup_fetch bigint, n_tup_ins bigint, n_tup_upd bigint, n_tup_del bigint, n_tup_hot_upd bigint, n_live_tup bigint, n_dead_tup bigint, n_mod_since_analyze bigint, last_vacuum timestamp with time zone, last_autovacuum timestamp with time zone, last_analyze timestamp with time zone, last_autoanalyze timestamp with time zone, vacuum_count bigint, autovacuum_count bigint, analyze_count bigint, autoanalyze_count bigint)
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
     RETURN QUERY 
     select 
@@ -54,13 +29,9 @@ BEGIN
       max(sath.autoanalyze_count) as autoanalyze_count
     from 
       epg_stats.stat_all_tables_hist  sath
-    WHERE sath.ts between 
-      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
-      and 
-      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)     
-      --and sath.relname in ('pg_namespace')
+    WHERE sath.ts IN (select ts from epg_stats.find_interval_boundaries(g_ts, g_interval)) 
     group by sath.relid, sath.schemaname, sath.relname;
     
 END
-$$
-LANGUAGE plpgsql
+$function$
+;

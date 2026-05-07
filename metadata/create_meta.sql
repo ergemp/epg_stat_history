@@ -143,11 +143,22 @@ BEGIN
 					queryid bigint,
 					query text,
 					calls bigint,
+					plans bigint,
 					total_time double precision,
 					min_time double precision,
 					max_time double precision,
 					mean_time double precision,
 					stddev_time double precision,
+					total_plan_time double precision,
+					min_plan_time double precision, 
+					max_plan_time double precision, 
+					mean_plan_time double precision,
+					stddev_plan_time double precision, 
+					total_exec_time double precision,
+					min_exec_time double precision, 
+					max_exec_time double precision, 
+					mean_exec_time double precision,
+					stddev_exec_time double precision, 
 					rows bigint,
 					shared_blks_hit bigint,
 					shared_blks_read bigint,
@@ -160,7 +171,16 @@ BEGIN
 					temp_blks_read bigint,
 					temp_blks_written bigint,
 					blk_read_time double precision,
-					blk_write_time double precision					
+					blk_write_time double precision,
+					shared_blk_read_time double precision,
+					shared_blk_write_time double precision,
+					local_blk_read_time double precision,
+					local_blk_write_time double precision,
+					temp_blk_read_time double precision,
+					temp_blk_write_time double precision,
+					wal_records bigint, 
+					wal_fpi bigint,
+					wal_bytes numeric				
 			 	)';
 	EXECUTE 'create index if not exists ix_stat_statements_hist on epg_stats.stat_statements_hist(ts)';
 
@@ -236,7 +256,14 @@ BEGIN
 				slru_written int8,
 				stats_reset timestamptz
 				)';
-	execute 'create index if not exists ix_stat_checkpointer_hist ON epg_stats.stat_checkpointer_hist USING btree (ts)';
+	EXECUTE 'create index if not exists ix_stat_checkpointer_hist ON epg_stats.stat_checkpointer_hist USING btree (ts)';
+
+	EXECUTE 'CREATE TABLE epg_stats.stat_intervals (
+			  ts_epoch bigint,
+			  ts_timestamp timestamp 
+				)';
+	EXECUTE 'create index if not exists ix_stat_intervals ON epg_stats.stat_intervals USING btree (ts_epoch, ts_timestamp)';
+
 
 END;
 $procedure$

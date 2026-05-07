@@ -1,18 +1,21 @@
 drop procedure if exists epg_stats.fill_meta();
 
-
 CREATE OR REPLACE PROCEDURE epg_stats.fill_meta()
  LANGUAGE plpgsql
 AS $procedure$
 DECLARE
   currentts bigint;
   pg_version varchar(10);
+  pg_stat_statements_installed int;
 BEGIN
 	
     --select  * from pg_settings where name = 'server_version';
     select substring(version(), length('PostgreSQL ') + 1, 2) into pg_version;
+    select count(*) into pg_stat_statements_installed from pg_extension where extname='pg_stat_statements';
 
 	currentts := extract(epoch from now()::timestamp with time zone) ;
+
+	execute 'INSERT INTO epg_stats.stat_intervals (ts_epoch, ts_timestamp) values (' || currentts || ',''' || to_timestamp(currentts)|| ''' )';
 
 	execute 'INSERT INTO epg_stats.stat_all_tables_hist 
 				(
@@ -242,7 +245,7 @@ BEGIN
 						buffers_alloc , 
 						stats_reset 
 					FROM pg_stat_bgwriter';
-	elsif (cast(pg_version as integer) >= 16 ) then
+	elsif (cast(pg_version as integer) > 16 ) then
 		execute 'INSERT INTO epg_stats.stat_bgwriter_hist
 					(
 						ts ,
@@ -290,135 +293,214 @@ BEGIN
 					FROM pg_stat_checkpointer';
 	end if;
 
-    if (cast(pg_version as integer) <= 12) then
-		execute 'INSERT INTO epg_stats.stat_statements_hist 
-					(
-						ts ,
-						userid ,
-						dbid ,
-						queryid ,
-						query ,
-						calls ,
-						total_time ,
-						min_time ,
-						max_time ,
-						mean_time ,
-						stddev_time ,
-						rows ,
-						shared_blks_hit ,
-						shared_blks_read ,
-						shared_blks_dirtied ,
-						shared_blks_written ,
-						local_blks_hit ,
-						local_blks_read ,
-						local_blks_dirtied ,
-						local_blks_written ,
-						temp_blks_read ,
-						temp_blks_written ,
-						blk_read_time ,
-						blk_write_time 
-					)
-					SELECT 
-						' || currentts || ',
-						userid ,
-						dbid ,
-						queryid ,
-						query ,
-						calls ,
-						total_time ,
-						min_time ,
-						max_time ,
-						mean_time ,
-						stddev_time ,
-						rows ,
-						shared_blks_hit ,
-						shared_blks_read ,
-						shared_blks_dirtied ,
-						shared_blks_written ,
-						local_blks_hit ,
-						local_blks_read ,
-						local_blks_dirtied ,
-						local_blks_written ,
-						temp_blks_read ,
-						temp_blks_written ,
-						blk_read_time ,
-						blk_write_time 
-					FROM pg_stat_statements';
-	elsif (cast(pg_version as integer) >= 13 and cast(pg_version as integer) <= 16) then
-		execute 'INSERT INTO epg_stats.stat_statements_hist 
-					(
-						ts ,
-						userid ,
-						dbid ,
-						queryid ,
-						query ,
-						calls ,
-						plans,
-						total_plan_time,
-						min_plan_time, 
-						max_plan_time, 
-						mean_plan_time,
-						stddev_plan_time, 
-						total_exec_time,
-						min_exec_time, 
-						max_exec_time, 
-						mean_exec_time,
-						stddev_exec_time, 
-						rows ,
-						shared_blks_hit ,
-						shared_blks_read ,
-						shared_blks_dirtied ,
-						shared_blks_written ,
-						local_blks_hit ,
-						local_blks_read ,
-						local_blks_dirtied ,
-						local_blks_written ,
-						temp_blks_read ,
-						temp_blks_written ,
-						blk_read_time ,
-						blk_write_time ,
-						wal_records, 
-						wal_fpi,
-						wal_bytes
-					)
-					SELECT 
-						' || currentts || ',
-						userid ,
-						dbid ,
-						queryid ,
-						query ,
-						calls ,
-						plans,
-						total_plan_time,
-						min_plan_time, 
-						max_plan_time, 
-						mean_plan_time,
-						stddev_plan_time, 
-						total_exec_time,
-						min_exec_time, 
-						max_exec_time, 
-						mean_exec_time,
-						stddev_exec_time, 
-						rows ,
-						shared_blks_hit ,
-						shared_blks_read ,
-						shared_blks_dirtied ,
-						shared_blks_written ,
-						local_blks_hit ,
-						local_blks_read ,
-						local_blks_dirtied ,
-						local_blks_written ,
-						temp_blks_read ,
-						temp_blks_written ,
-						blk_read_time ,
-						blk_write_time ,
-						wal_records, 
-						wal_fpi,
-						wal_bytes
-					FROM pg_stat_statements';
-	elsif (cast(pg_version as integer) > 16) then
-
-
+    if (pg_stat_statements_installed=1) then 
+		if (cast(pg_version as integer) <= 12) then
+			execute 'INSERT INTO epg_stats.stat_statements_hist 
+						(
+							ts ,
+							userid ,
+							dbid ,
+							queryid ,
+							query ,
+							calls ,
+							total_time ,
+							min_time ,
+							max_time ,
+							mean_time ,
+							stddev_time ,
+							rows ,
+							shared_blks_hit ,
+							shared_blks_read ,
+							shared_blks_dirtied ,
+							shared_blks_written ,
+							local_blks_hit ,
+							local_blks_read ,
+							local_blks_dirtied ,
+							local_blks_written ,
+							temp_blks_read ,
+							temp_blks_written ,
+							blk_read_time ,
+							blk_write_time 
+						)
+						SELECT 
+							' || currentts || ',
+							userid ,
+							dbid ,
+							queryid ,
+							query ,
+							calls ,
+							total_time ,
+							min_time ,
+							max_time ,
+							mean_time ,
+							stddev_time ,
+							rows ,
+							shared_blks_hit ,
+							shared_blks_read ,
+							shared_blks_dirtied ,
+							shared_blks_written ,
+							local_blks_hit ,
+							local_blks_read ,
+							local_blks_dirtied ,
+							local_blks_written ,
+							temp_blks_read ,
+							temp_blks_written ,
+							blk_read_time ,
+							blk_write_time 
+						FROM pg_stat_statements';
+		elsif (cast(pg_version as integer) >= 13 and cast(pg_version as integer) <= 16) then
+			execute 'INSERT INTO epg_stats.stat_statements_hist 
+						(
+							ts ,
+							userid ,
+							dbid ,
+							queryid ,
+							query ,
+							calls ,
+							plans,
+							total_plan_time,
+							min_plan_time, 
+							max_plan_time, 
+							mean_plan_time,
+							stddev_plan_time, 
+							total_exec_time,
+							min_exec_time, 
+							max_exec_time, 
+							mean_exec_time,
+							stddev_exec_time, 
+							rows ,
+							shared_blks_hit ,
+							shared_blks_read ,
+							shared_blks_dirtied ,
+							shared_blks_written ,
+							local_blks_hit ,
+							local_blks_read ,
+							local_blks_dirtied ,
+							local_blks_written ,
+							temp_blks_read ,
+							temp_blks_written ,
+							blk_read_time ,
+							blk_write_time,
+							wal_records, 
+							wal_fpi,
+							wal_bytes
+						)
+						SELECT 
+							' || currentts || ',
+							userid ,
+							dbid ,
+							queryid ,
+							query ,
+							calls ,
+							plans,
+							total_plan_time,
+							min_plan_time, 
+							max_plan_time, 
+							mean_plan_time,
+							stddev_plan_time, 
+							total_exec_time,
+							min_exec_time, 
+							max_exec_time, 
+							mean_exec_time,
+							stddev_exec_time, 
+							rows ,
+							shared_blks_hit ,
+							shared_blks_read ,
+							shared_blks_dirtied ,
+							shared_blks_written ,
+							local_blks_hit ,
+							local_blks_read ,
+							local_blks_dirtied ,
+							local_blks_written ,
+							temp_blks_read ,
+							temp_blks_written ,
+							blk_read_time ,
+							blk_write_time ,
+							wal_records, 
+							wal_fpi,
+							wal_bytes
+						FROM pg_stat_statements';
+		elsif (cast(pg_version as integer) > 16) then
+			execute 'INSERT INTO epg_stats.stat_statements_hist 
+						(
+							ts ,
+							userid ,
+							dbid ,
+							queryid ,
+							query ,
+							calls ,
+							plans,
+							total_plan_time,
+							min_plan_time, 
+							max_plan_time, 
+							mean_plan_time,
+							stddev_plan_time, 
+							total_exec_time,
+							min_exec_time, 
+							max_exec_time, 
+							mean_exec_time,
+							stddev_exec_time, 
+							rows ,
+							shared_blks_hit ,
+							shared_blks_read ,
+							shared_blks_dirtied ,
+							shared_blks_written ,
+							local_blks_hit ,
+							local_blks_read ,
+							local_blks_dirtied ,
+							local_blks_written ,
+							temp_blks_read ,
+							temp_blks_written ,
+							shared_blk_read_time ,
+							shared_blk_write_time,
+							local_blk_read_time ,
+							local_blk_write_time,
+							temp_blk_read_time ,
+							temp_blk_write_time,
+							wal_records, 
+							wal_fpi,
+							wal_bytes
+						)
+						SELECT 
+							' || currentts || ',
+							userid ,
+							dbid ,
+							queryid ,
+							query ,
+							calls ,
+							plans,
+							total_plan_time,
+							min_plan_time, 
+							max_plan_time, 
+							mean_plan_time,
+							stddev_plan_time, 
+							total_exec_time,
+							min_exec_time, 
+							max_exec_time, 
+							mean_exec_time,
+							stddev_exec_time, 
+							rows ,
+							shared_blks_hit ,
+							shared_blks_read ,
+							shared_blks_dirtied ,
+							shared_blks_written ,
+							local_blks_hit ,
+							local_blks_read ,
+							local_blks_dirtied ,
+							local_blks_written ,
+							temp_blks_read ,
+							temp_blks_written ,
+							shared_blk_read_time ,
+							shared_blk_write_time,
+							local_blk_read_time ,
+							local_blk_write_time,
+							temp_blk_read_time ,
+							temp_blk_write_time,
+							wal_records, 
+							wal_fpi,
+							wal_bytes
+						FROM pg_stat_statements';
+		end if;
 	end if;
 
 	execute 'INSERT INTO epg_stats.stat_locks_hist 
@@ -522,6 +604,5 @@ BEGIN
 END
 $procedure$
 ;
-
 
 --call epg_stats.fill_meta();

@@ -1,39 +1,13 @@
-drop FUNCTION IF exists epg_stats.get_stat_activity_hist;
+-- DROP FUNCTION epg_stats.get_stat_activity_hist(int8, interval);
 
-CREATE OR replace FUNCTION epg_stats.get_stat_activity_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
-(
-    ts bigint,
-    datid oid,
-    datname character varying,
-    pid integer,
-    usesysid oid,
-    usename character varying,
-    application_name text,
-    client_addr inet,
-    client_hostname text,
-    client_port integer,
-    backend_start timestamp with time zone,
-    xact_start timestamp with time zone,
-    query_start timestamp with time zone,
-    state_change timestamp with time zone,
-    wait_event_type text,
-    wait_event text,
-    state text,
-    backend_xid xid,
-    backend_xmin xid,
-    query text,
-    backend_type text
-)
-AS 
-$$
+CREATE OR REPLACE FUNCTION epg_stats.get_stat_activity_hist(g_ts bigint, g_interval interval)
+ RETURNS TABLE(ts bigint, datid oid, datname character varying, pid integer, usesysid oid, usename character varying, application_name text, client_addr inet, client_hostname text, client_port integer, backend_start timestamp with time zone, xact_start timestamp with time zone, query_start timestamp with time zone, state_change timestamp with time zone, wait_event_type text, wait_event text, state text, backend_xid xid, backend_xmin xid, query text, backend_type text)
+ LANGUAGE plpgsql
+AS $function$
 DECLARE 
   mints bigint;
   maxts bigint;
 BEGIN
-
-    select min(fb.ts) into mints from epg_stats.find_interval(g_ts, g_interval) fb;
-    select min(fb.ts) into maxts from epg_stats.find_interval(g_ts, g_interval) fb;
-
     RETURN QUERY 
     select 
       sah.ts, sah.datid, sah.datname, sah.pid,
@@ -46,10 +20,10 @@ BEGIN
     from 
       epg_stats.stat_activity_hist sah
     where sah.ts between
-      (select min(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb) 
+      (select min(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
       and 
-      (select max(fb.ts) from epg_stats.find_interval(g_ts, g_interval) fb)                       
+      (select max(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb)                       
     ;    
 END
-$$
-LANGUAGE plpgsql
+$function$
+;

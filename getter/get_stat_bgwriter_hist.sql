@@ -1,24 +1,14 @@
-drop function if exists epg_stats.get_stat_bgwriter_hist;
+-- DROP FUNCTION epg_stats.get_stat_bgwriter_hist(int8, interval);
 
-CREATE OR replace FUNCTION epg_stats.get_stat_bgwriter_hist(g_ts bigint, g_interval interval) RETURNS TABLE 
-(
-    begin_ts bigint,
-    end_ts bigint,
-    checkpoints_timed bigint,
-    checkpoints_req bigint,
-    checkpoint_write_time double precision,
-    checkpoint_sync_time double precision,
-    buffers_checkpoint bigint,
-    buffers_clean bigint,
-    maxwritten_clean bigint,
-    buffers_backend bigint,
-    buffers_backend_fsync bigint,
-    buffers_alloc bigint,
-    stats_reset timestamp with time zone
-)
-AS 
-$$
+CREATE OR REPLACE FUNCTION epg_stats.get_stat_bgwriter_hist(g_ts bigint, g_interval interval)
+ RETURNS TABLE(begin_ts bigint, end_ts bigint, checkpoints_timed bigint, checkpoints_req bigint, checkpoint_write_time double precision, checkpoint_sync_time double precision, buffers_checkpoint bigint, buffers_clean bigint, maxwritten_clean bigint, buffers_backend bigint, buffers_backend_fsync bigint, buffers_alloc bigint, stats_reset timestamp with time zone)
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+	pg_version varchar(10);
 BEGIN
+	select substring(version(), length('PostgreSQL ') + 1, 2) into pg_version;
+
     RETURN QUERY 
     select 
       min(sbh.ts), max(sbh.ts), 
@@ -35,9 +25,8 @@ BEGIN
       max(sbh.stats_reset)      
     from 
       epg_stats.stat_bgwriter_hist  sbh
-    --where sbh.ts in (select * FROM epg_stats.find_between(g_ts) fb)      
-    WHERE sbh.ts IN (select ts from epg_stats.find_interval(g_ts, g_interval))
+    WHERE sbh.ts IN (select ts from epg_stats.find_interval_boundaries(g_ts, g_interval))
     ;    
 END
-$$
-LANGUAGE plpgsql
+$function$
+;

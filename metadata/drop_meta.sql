@@ -1,7 +1,8 @@
 drop procedure if exists epg_stats.drop_meta();
 
-create or replace procedure epg_stats.drop_meta()  as
-$$
+CREATE OR REPLACE PROCEDURE epg_stats.drop_meta()
+ LANGUAGE plpgsql
+AS $procedure$
 declare 
 begin 
 	execute 'drop table if exists epg_stats.stat_all_tables_hist';
@@ -12,9 +13,11 @@ begin
 	execute 'drop table if exists epg_stats.stat_statements_hist';
 	execute 'drop table if exists epg_stats.stat_archiver_hist';
 	execute 'drop table if exists epg_stats.stat_bgwriter_hist';
+	execute 'drop table if exists epg_stats.stat_checkpointer_hist';
 	execute 'drop table if exists epg_stats.stat_locks_hist';
 	execute 'drop table if exists epg_stats.stat_database_hist';
 	execute 'drop table if exists epg_stats.pg_settings_hist';
+	execute 'drop table if exists epg_stats.stat_intervals';
 end
-$$
-language plpgsql 
+$procedure$
+;

@@ -1,14 +1,17 @@
-drop function if exists epg_stats.check_last_ts();
+-- drop function if exists epg_stats.check_last_ts();
 
-CREATE OR replace function epg_stats.check_last_ts() RETURNS TABLE(tts bigint, ttime timestamp) as
-$$
+CREATE OR REPLACE FUNCTION epg_stats.check_last_ts()
+ RETURNS TABLE(tts bigint, ttime timestamp without time zone)
+ LANGUAGE plpgsql
+AS $function$
 declare
   retval bigint;
 BEGIN
-  SELECT max(ts), to_timestamp(max(ts)) into tts, ttime  FROM epg_stats.stat_activity_hist;
+  SELECT max(ts_epoch), max(ts_timestamp) into tts, ttime  FROM epg_stats.stat_intervals;
   return next;
 end
-$$
-language plpgsql
+$function$
+;
+
 
 --select * from fv_stats.check_last_ts();
