@@ -262,35 +262,61 @@ BEGIN
 						stats_reset 
 					FROM pg_stat_bgwriter';
 
-		execute 'INSERT INTO epg_stats.stat_checkpointer_hist
-					(
-						ts ,
-						num_timed , 
-						num_requested , 
-						num_done , 
-						restartpoints_timed , 
-						restartpoints_req , 
-						restartpoints_done , 
-						write_time , 
-						sync_time , 
-						buffers_written , 
-						slru_written,
-						stats_reset 
-					)
-					SELECT 
-						' || currentts || ',
-						num_timed , 
-						num_requested , 
-						num_done , 
-						restartpoints_timed , 
-						restartpoints_req , 
-						restartpoints_done , 
-						write_time , 
-						sync_time , 
-						buffers_written , 
-						slru_written,
-						stats_reset 
-					FROM pg_stat_checkpointer';
+		if (cast(pg_version as integer) = 17 ) then
+			execute 'INSERT INTO epg_stats.stat_checkpointer_hist
+						(
+							ts ,
+							num_timed , 
+							num_requested , 
+							restartpoints_timed , 
+							restartpoints_req , 
+							write_time , 
+							sync_time , 
+							buffers_written , 
+							stats_reset 
+						)
+						SELECT 
+							' || currentts || ',
+							num_timed , 
+							num_requested , 
+							restartpoints_timed , 
+							restartpoints_req , 
+							write_time , 
+							sync_time , 
+							buffers_written , 
+							stats_reset 
+						FROM pg_stat_checkpointer';
+		elsif (cast(pg_version as integer) >= 18 ) then
+			execute 'INSERT INTO epg_stats.stat_checkpointer_hist
+						(
+							ts ,
+							num_timed , 
+							num_requested , 
+							num_done , 
+							restartpoints_timed , 
+							restartpoints_req , 
+							restartpoints_done , 
+							write_time , 
+							sync_time , 
+							buffers_written , 
+							slru_written,
+							stats_reset 
+						)
+						SELECT 
+							' || currentts || ',
+							num_timed , 
+							num_requested , 
+							num_done , 
+							restartpoints_timed , 
+							restartpoints_req , 
+							restartpoints_done , 
+							write_time , 
+							sync_time , 
+							buffers_written , 
+							slru_written,
+							stats_reset 
+						FROM pg_stat_checkpointer';
+		end if;
 	end if;
 
     if (pg_stat_statements_installed=1) then 
