@@ -140,7 +140,7 @@ begin
       limit 20
     loop	    
 	    raise notice '% % % % % % ', top_wait_eventcount_cur.wait_event_type, chr(9), top_wait_eventcount_cur.wait_event, chr(9), top_wait_eventcount_cur.total_waits, chr(9) ;
-  	    raise notice '%', chr(10);	  
+  	    --raise notice '%', chr(10);	  
     END LOOP;
 
     raise notice '-------------------- % %', chr(10), chr(10);
@@ -174,6 +174,7 @@ begin
     raise notice 'Top 20 Seq Scan Tables %', chr(10);
     raise notice '-------------- %', chr(10);      
      
+
     --
     -- header for top sequencial read tables
     --   
@@ -559,7 +560,7 @@ begin
    				; 
    			
     FOR general_params_curr IN
-        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval) where name in ('listen_address','port','max_connections','shared_buffers','wal_buffers',
+        SELECT name, setting, category FROM epg_stats.get_stat_settings_hist(g_ts, g_interval) where name in ('listen_address','port','max_connections','shared_buffers','wal_buffers',
                                                               'temp_buffers', 'maintenance_work_mem', 'autovacuum_work_mem','effective_cache_size',
                                                               'superuser_reserved_connections','authentication_timeout',
                                                               'update_process_title','cluster_name' )
@@ -586,7 +587,7 @@ begin
    				; 
    			   
     FOR autovacuum_params_curr IN
-        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval) where name in ( 'autovacuum_freeze_max_age','autovacuum_max_workers','autovacuum_naptime',
+        SELECT name, setting, category FROM epg_stats.get_stat_settings_hist(g_ts, g_interval) where name in ( 'autovacuum_freeze_max_age','autovacuum_max_workers','autovacuum_naptime',
                                         'autovacuum_vacuum_cost_delay','maintenance_work_mem','vacuum_freeze_min_age',
                                         'autovacuum_vacuum_cost_limit','autovacuum_vacuum_cost_delay',
                                         'vacuum_cost_page_hit', 'vacuum_cost_page_miss', 'vacuum_cost_page_dirty',
@@ -615,7 +616,7 @@ begin
    				; 
    
     FOR parallel_params_curr IN
-        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval) where name in ('max_worker_processes','max_parallel_workers','max_parallel_workers_per_gather',
+        SELECT name, setting, category FROM epg_stats.get_stat_settings_hist(g_ts, g_interval) where name in ('max_worker_processes','max_parallel_workers','max_parallel_workers_per_gather',
                                                                'parallel_setup_cost','parallel_tuple_cost','min_parallel_table_scan_size','min_parallel_index_scan_size',
                                                                'force_parallel_mode','work_mem','maintenance_work_mem')
     loop
@@ -641,7 +642,7 @@ begin
 	   				; 
    			
     FOR wal_params_curr IN
-        SELECT name, setting, category FROM epg_stats.get_pg_settings_hist(g_ts, g_interval)
+        SELECT name, setting, category FROM epg_stats.get_stat_settings_hist(g_ts, g_interval)
           where name in ('fsync','wal_sync_method','synchronous_commit','wal_writer_delay', 'wal_writer_delay', 'wal_writer_flush_after',
                  'checkpoint_timeout','checkpoint_completion_target','checkpoint_flush_after','max_wal_size','commit_delay',
                  'wal_recycle','wal_compression','full_page_writes','wal_level')
