@@ -36,7 +36,7 @@ psql -d $1 -f getter/get_stat_checkpointer_hist.sql
 psql -d $1 -f getter/get_stat_database_hist.sql
 psql -d $1 -f getter/get_stat_locks_hist.sql
 psql -d $1 -f getter/get_stat_statements_hist.sql
-psql -d $1 -f getter/get_pg_settings_hist.sql
+psql -d $1 -f getter/get_stat_settings_hist.sql
 psql -d $1 -f getter/get_series_all_indexes_hist.sql
 psql -d $1 -f getter/get_series_all_tables_hist.sql
 psql -d $1 -f getter/get_series_archiver_hist.sql
@@ -45,8 +45,9 @@ psql -d $1 -f getter/get_series_checkpointer_hist.sql
 psql -d $1 -f getter/get_series_database_hist.sql
 psql -d $1 -f getter/get_series_statio_all_indexes_hist.sql
 psql -d $1 -f getter/get_series_statio_all_tables_hist.sql
+psql -d $1 -f getter/get_series_settings_hist.sql
 
 
 # install awr 
-psql -d $1 -f awr/generate_report.sql
+# psql -d $1 -f awr/generate_report.sql
 psql -d $1 -f awr/show_report.sql
