@@ -1,6 +1,6 @@
-drop function IF EXISTS epg_stats.get_pg_settings_hist;
+-- DROP FUNCTION epg_stats.get_stat_settings_hist(int8, interval);
 
-CREATE OR REPLACE FUNCTION epg_stats.get_pg_settings_hist(g_ts bigint, g_interval interval)
+CREATE OR REPLACE FUNCTION epg_stats.get_stat_settings_hist(g_ts bigint, g_interval interval)
  RETURNS TABLE(ts bigint, name text, setting text, category text)
  LANGUAGE plpgsql
 AS $function$

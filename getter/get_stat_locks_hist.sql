@@ -13,7 +13,7 @@ BEGIN
       slh.objsubid, slh.virtualtransaction, slh.pid, slh.mode, 
       slh. granted, slh.fastpath
     from 
-      fv_stats.stat_locks_hist  slh
+      epg_stats.stat_locks_hist  slh
     WHERE slh.ts BETWEEN
       (select min(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
       and 
