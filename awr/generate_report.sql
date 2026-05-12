@@ -1,3 +1,10 @@
+--
+-- Update: 2026.05.11
+-- DEPRECATED(not maintained anymore)
+-- USE show_report() 
+--
+
+/*
 DROP FUNCTION IF EXISTS epg_stats.generate_report(bigint, interval, text);
 
 CREATE OR REPLACE PROCEDURE epg_stats.generate_report(IN g_ts bigint, IN g_interval interval, IN g_filename text)
@@ -605,3 +612,5 @@ $procedure$
 ;
 
 --call epg_stats.generate_report (cast(extract (epoch from now()) as bigint), INTERVAL '30 min', 'awr.txt');
+
+*/
