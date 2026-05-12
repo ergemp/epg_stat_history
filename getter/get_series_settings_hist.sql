@@ -26,7 +26,7 @@ begin
 	  ts_epoch as current_snapshot,
 	  lag(ts_epoch) OVER (ORDER BY ts_epoch) AS previous_snapshot
 	from epg_stats.find_interval_snapshots(cast(extract(epoch from now()) as bigint), '1 day'::interval) order by 1 desc
-	)
+	) tt
 	where previous_snapshot is not null; 
 
     LOOP
