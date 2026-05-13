@@ -8,7 +8,7 @@ declare
   c1 REFCURSOR;
   row_data RECORD;
 begin
-	CREATE TEMP TABLE IF NOT EXISTS temp_results (
+	CREATE TEMP TABLE IF NOT EXISTS temp_results_get_series_statio_all_indexes_hist (
 		begin_ts bigint, 
 		end_ts bigint, 
 		relid oid, 
@@ -31,13 +31,15 @@ begin
       FETCH c1 INTO row_data;
       EXIT WHEN NOT FOUND;
       -- raise notice '%', row_data.ts_timestamp;
-      insert into temp_results
+      insert into temp_results_temp_results_get_series_statio_all_indexes_hist
         select * from epg_stats.get_statio_all_indexes_hist(row_data.current_snapshot, (to_timestamp(row_data.current_snapshot)-to_timestamp(row_data.previous_snapshot))::interval);    
     END LOOP;
     CLOSE c1;
 
 	return query
-	select * from temp_results;
+	select * from temp_results_temp_results_get_series_statio_all_indexes_hist;
+	
+	DROP TABLE IF EXISTS temp_results_get_series_statio_all_indexes_hist;
 end;
 $function$
 ;

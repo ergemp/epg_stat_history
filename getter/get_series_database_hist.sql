@@ -8,7 +8,7 @@ declare
   c1 REFCURSOR;
   row_data RECORD;
 begin
-    CREATE TEMP TABLE IF NOT EXISTS temp_results (
+    CREATE TEMP TABLE IF NOT EXISTS temp_results_get_series_database_hist (
 		begin_ts int8 NULL,
 		end_ts int8 NULL,
 		datid oid NULL,
@@ -45,13 +45,15 @@ begin
       FETCH c1 INTO row_data;
       EXIT WHEN NOT FOUND;
       -- raise notice '%', row_data.ts_timestamp;
-      insert into temp_results
+      insert into temp_results_get_series_database_hist
         select * from epg_stats.get_stat_database_hist(row_data.current_snapshot, (to_timestamp(row_data.current_snapshot)-to_timestamp(row_data.previous_snapshot))::interval);    
     END LOOP;
     CLOSE c1;
 
 	return query
-	select * from temp_results;
+	select * from temp_results_get_series_database_hist;
+	
+	DROP TABLE IF EXISTS temp_results_get_series_database_hist;
 end;
 $function$
 ;

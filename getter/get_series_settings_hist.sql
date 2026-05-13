@@ -11,7 +11,7 @@ begin
 
 	drop table if exists temp_results; 
 
-    CREATE TEMP TABLE IF NOT EXISTS temp_results (
+    CREATE TEMP TABLE IF NOT EXISTS temp_results_get_series_settings_hist (
 		ts bigint, 
 		name text, 
 		setting text, 
@@ -33,13 +33,15 @@ begin
       FETCH c1 INTO row_data;
       EXIT WHEN NOT FOUND;
       -- raise notice '%', row_data.ts_timestamp;
-      insert into temp_results
+      insert into temp_results_get_series_settings_hist
         select * from epg_stats.get_stat_settings_hist(row_data.current_snapshot, (to_timestamp(row_data.current_snapshot)-to_timestamp(row_data.previous_snapshot))::interval);    
     END LOOP;
     CLOSE c1;
 
 	return query
-	select * from temp_results;
+	select * from temp_results_get_series_settings_hist;
+	
+	DROP TABLE IF EXISTS temp_results_get_series_settings_hist;
 end;
 $function$
 ;
