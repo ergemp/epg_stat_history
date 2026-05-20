@@ -13,6 +13,8 @@ And so on...
 ## Configuring statistics collector
 EPG stats is highly dependent to the Postgresql native statistics collector. So at least the following tracking options should be enabled.
 
+[The Cumulative Statistics System](https://www.postgresql.org/docs/current/monitoring-stats.html)
+
 You can configure the settings by editing the postgresql.conf file.
 
 ```
