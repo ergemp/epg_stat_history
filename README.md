@@ -19,6 +19,8 @@ You can configure the settings by editing the postgresql.conf file.
 track_counts = on
 track_io_timing = on
 track_activities = on
+track_functions = on
+track_wal_io_timing = on
 track_activity_query_size = 1024
 ```
 
