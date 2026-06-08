@@ -1,4 +1,4 @@
-drop procedure if exists epg_stats.fill_meta();
+-- drop procedure if exists epg_stats.fill_meta();
 
 CREATE OR REPLACE PROCEDURE epg_stats.fill_meta()
  LANGUAGE plpgsql
@@ -144,7 +144,8 @@ BEGIN
 					idx_blks_read , 
 					idx_blks_hit  
 					FROM pg_statio_all_indexes';
-				
+	
+	/*			
 	execute 'INSERT INTO epg_stats.stat_activity_hist 
 				(
 				  ts,
@@ -192,7 +193,8 @@ BEGIN
 				  query,
 				  backend_type
 				FROM pg_stat_activity';	
-			
+	*/
+
 	execute 'INSERT INTO epg_stats.stat_archiver_hist
 				(
 					ts , 
@@ -529,6 +531,7 @@ BEGIN
 		end if;
 	end if;
 
+	/*
 	execute 'INSERT INTO epg_stats.stat_locks_hist 
 				(
 					ts ,
@@ -566,6 +569,7 @@ BEGIN
 					granted , 
 					fastpath 
 				FROM pg_locks';
+	*/
 
 	execute 'INSERT INTO epg_stats.stat_database_hist 
 				(
@@ -612,6 +616,52 @@ BEGIN
 					blk_write_time ,
 					stats_reset 
 				FROM pg_stat_database';	
+
+	if (cast(pg_version as integer) >= 14 and cast(pg_version as integer) <= 17) then
+		execute 'INSERT INTO epg_stats.stat_wal_hist
+					(
+						ts ,
+						wal_records , 
+						wal_fpi , 
+						wal_bytes ,
+						wal_buffers_full ,
+						wal_write ,
+						wal_sync , 
+						wal_write_time , 
+						wal_sync_time , 
+						stats_reset 
+					)
+					SELECT 
+						' || currentts || ',
+						wal_records , 
+						wal_fpi , 
+						wal_bytes ,
+						wal_buffers_full ,
+						wal_write ,
+						wal_sync , 
+						wal_write_time , 
+						wal_sync_time , 
+						stats_reset 
+					FROM pg_stat_wal';
+	elsif (cast(pg_version as integer) > 17) then
+		execute 'INSERT INTO epg_stats.stat_wal_hist
+					(
+						ts ,
+						wal_records , 
+						wal_fpi , 
+						wal_bytes ,
+						wal_buffers_full 
+						stats_reset 
+					)
+					SELECT 
+						' || currentts || ',
+						wal_records , 
+						wal_fpi , 
+						wal_bytes ,
+						wal_buffers_full 
+						stats_reset 
+					FROM pg_stat_wal';		
+	end if;
 
 	execute 'INSERT INTO epg_stats.pg_settings_hist 
 				(

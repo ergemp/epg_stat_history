@@ -1,0 +1,1 @@
+/usr/pgsql-14/bin/psql -d <database_name> -f "/var/lib/pgsql/scripts/run_fill_activity.sql"

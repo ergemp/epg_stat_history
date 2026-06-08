@@ -258,13 +258,28 @@ BEGIN
 				)';
 	EXECUTE 'create index if not exists ix_stat_checkpointer_hist ON epg_stats.stat_checkpointer_hist USING btree (ts)';
 
-	EXECUTE 'CREATE TABLE epg_stats.stat_intervals (
+	EXECUTE 'create table epg_stats.stat_intervals (
 			  ts_epoch bigint,
 			  ts_timestamp timestamp 
 				)';
 	EXECUTE 'create index if not exists ix_stat_intervals ON epg_stats.stat_intervals USING btree (ts_epoch, ts_timestamp)';
 
+	EXECUTE 'create table if not exists epg_stats.stat_wal_hist
+			(
+				ts int8,
+				wal_records bigint, 
+				wal_fpi bigint,
+				wal_bytes numeric,
+				wal_buffers_full bigint,
+				wal_write bigint,
+				wal_sync bigint,
+				wal_write_time double precision,
+				wal_sync_time double precision,
+				stats_reset timestamp
+			)';
+	EXECUTE 'create index if not exists ix_stat_wal_hist ON epg_stats.stat_wal_hist USING btree (ts)';
 
 END;
 $procedure$
 ;
+

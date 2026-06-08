@@ -14,6 +14,7 @@ psql -d $1 -f metadata/create_schema.sql
 psql -d $1 -f metadata/create_meta.sql
 psql -d $1 -f metadata/drop_meta.sql
 psql -d $1 -f metadata/fill_meta.sql
+psql -d $1 -f metadata/fill_activity.sql
 psql -d $1 -f metadata/delete_history.sql
 
 # install util functions
