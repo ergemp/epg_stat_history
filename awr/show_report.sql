@@ -8,22 +8,33 @@ DECLARE
   begin_time timestamp;
   end_time timestamp;
   dbname text;
+  v_tup_returned numeric;
+  v_tup_fetched numeric;
+  v_tup_inserted numeric;
+  v_tup_updated numeric;
+  v_tup_deleted numeric;
   dbcachehitratio numeric;
+  mb_hit numeric;
+  mb_read numeric;
   tempfiles numeric;
   tempmbs numeric;
   totalcommits numeric;
+  totalrollbacks numeric;
   totalreadtimesec numeric;
   totalwritetimesec numeric;
   statslastreset timestamp with time zone;
   databasesize text;
   databaseblocksize text;
+  pg_stat_statements_installed int;
 
   currenttimestamp timestamp with time zone;
   currenttxid text;
 
   oldest_current_xid  text;
   autovacuum_freeze_max_age  text;
+  tx_remaining_before_shutdown text;
   pct_towards_emergency_autovac  text;
+  pg_version text;
 
   tablecachehitratio numeric;
   indexcachehitratio numeric;
@@ -35,33 +46,56 @@ DECLARE
   top_table_size_curr record;
   temp_query_cur record;
   long_query_cur record;
+  most_query_cur record;
   bloats_curr record;
   table_wraparound_curr record;
+  archiver_cur record;
+  checkpoints_cur record;
+  memory_pressure_cur record;
+  top_backend_count_cur record;
+  top_lock_count_cur record;
   top_wait_eventcount_cur record;
   seq_scan_tables record;
   table_cache_hit_ratio record;
 begin    
-    --perform pg_catalog.pg_file_unlink(g_filename);
+	select count(*) into pg_stat_statements_installed from pg_extension where extname='pg_stat_statements';
+    select substring(version(), length('PostgreSQL ') + 1, 2) into pg_version;
 
     select 
       to_timestamp(begin_ts) , 
       to_timestamp(end_ts)  ,
       datname,
+	  tup_returned,
+	  tup_fetched,
+	  tup_inserted,
+	  tup_updated,
+	  tup_deleted,
       round(100 * blks_hit / cast((blks_read + blks_hit) as numeric),2),
+	  (blks_hit*8192)/1024/1024 as mb_hit,
+	  (blks_read*8192)/1024/1024 as mb_read,
       temp_files,
-      temp_bytes/1024/1024,
+      temp_bytes/1024/1024 as temp_mb,
       xact_commit,
-      blk_read_time/1000,
-      blk_write_time/1000,
+	  xact_rollback,
+      blk_read_time/1000 as blk_read_time_sec,
+      blk_write_time/1000 as blk_write_time_sec,
       stats_reset
-      into 
+	into 
       begin_time,
       end_time,
       dbname,
+	  v_tup_returned,
+	  v_tup_fetched,
+	  v_tup_inserted,
+	  v_tup_updated,
+	  v_tup_deleted,
       dbcachehitratio,
+	  mb_hit,
+	  mb_read,
       tempfiles,
       tempmbs,
       totalcommits,
+	  totalrollbacks,
       totalreadtimesec,
       totalwritetimesec,
       statslastreset
@@ -70,17 +104,18 @@ begin
 
     select pg_size_pretty(pg_database_size(current_database())) into databasesize;
     select current_setting('block_size') into databaseblocksize;
-    select current_timestamp, txid_current() into currenttimestamp, currenttxid ;
 
-    SELECT 
+    select 
       age(datfrozenxid),
       current_setting('autovacuum_freeze_max_age') ,      
-      ROUND(100*(age(datfrozenxid)/current_setting('autovacuum_freeze_max_age')::float))
+      round(100*(age(datfrozenxid)/current_setting('autovacuum_freeze_max_age')::float)),
+	  2000000000 - age(datfrozenxid) AS tx_remainingbefore_shutdown  
       into 
       oldest_current_xid,
       autovacuum_freeze_max_age,
-      pct_towards_emergency_autovac
-    FROM pg_database 
+      pct_towards_emergency_autovac,
+      tx_remaining_before_shutdown
+    from pg_database 
     where datname = current_database();
 
     raise notice '--------------- %', chr(10);
@@ -100,11 +135,24 @@ begin
     raise notice 'Total Used Temporary Files: % %', tempfiles, chr(10);
     raise notice 'Total Used Temporary MBs: % %', tempmbs, chr(10);
     raise notice 'Total Commits: % %', totalcommits, chr(10);
+    raise notice 'Total Rollbacks: % %', totalrollbacks, chr(10);
     raise notice 'Total Read Time (Sec): % %', totalreadtimesec, chr(10);
     raise notice 'Total Write Time (Sec): % %', totalwritetimesec, chr(10);
+    raise notice 'Total Read MB: % %', mb_read, chr(10);
+    raise notice 'Total Hit MB: % %', mb_hit, chr(10);
     raise notice 'Total Database Size (current): % %', databasesize, chr(10);
     raise notice 'Total Database Block Size (current): % %', databaseblocksize, chr(10);
-    raise notice 'Current TXID (current): % %', currenttxid, chr(10);
+
+    raise notice '-------------------- %', chr(10);
+    raise notice 'Tuple Stats %', chr(10);
+    raise notice '-------------------- %', chr(10);
+
+	raise notice 'Tuples Returned: % %', v_tup_returned, chr(10);
+    raise notice 'Tuples Fetched: % %', v_tup_fetched, chr(10);
+	raise notice 'Tuples Inserted: % %', v_tup_inserted, chr(10);
+	raise notice 'Tuples Updated: % %', v_tup_updated, chr(10);
+	raise notice 'Tuples Deleted: % %', v_tup_deleted, chr(10);
+
     raise notice '-------------------- % %', chr(10), chr(10);
    
     raise notice '-------------------- %', chr(10);
@@ -114,11 +162,11 @@ begin
     raise notice 'oldest_current_xid: % %', oldest_current_xid, chr(10);
     raise notice 'autovacuum_freeze_max_age: % %', autovacuum_freeze_max_age, chr(10);
     raise notice 'pct_towards_emergency_autovac: % %', pct_towards_emergency_autovac, chr(10);
+    raise notice 'tx_remaining_before_shutdown: % %', tx_remaining_before_shutdown, chr(10);
     raise notice '-------------------- % %', chr(10), chr(10);
    
-   
     raise notice '-------------------- % ', chr(10);
-    raise notice 'Top 20 Wait events occured (counts) %', chr(10);
+    raise notice 'Top 20 Wait events (counts) %', chr(10);
     raise notice '-------------------- %', chr(10);
    
     --
@@ -126,7 +174,6 @@ begin
     --
     raise notice '% % % % % % ', format('%-50s','wait_event_type'), chr(9), format('%-50s','wait_event'), chr(9), 'total_waits', chr(10) ;
    
-  
     FOR top_wait_eventcount_cur IN
       select 
         format('%-50s',wait_event_type) as wait_event_type, 
@@ -145,7 +192,177 @@ begin
 
     raise notice '-------------------- % %', chr(10), chr(10);
    	
+    raise notice '-------------------- % ', chr(10);
+    raise notice 'Top 20 Locks (counts) %', chr(10);
+    raise notice '-------------------- %', chr(10);
    
+    --
+    -- header for top locks (counts)
+    --
+    raise notice '% % % % % % ', format('%-50s','locktype'), chr(9), format('%-50s','mode'), chr(9), 'total', chr(10) ;
+   
+    FOR top_lock_count_cur IN
+      select 
+        format('%-50s',locktype) as locktype, 
+        format('%-50s',mode) as mode, 
+        count(*) as total
+      from epg_stats.get_stat_locks_hist(g_ts, g_interval) 
+      group by locktype, mode
+      order by 3 desc
+      limit 20
+    loop	    
+	    raise notice '% % % % % % ', top_lock_count_cur.locktype, chr(9), top_lock_count_cur.mode, chr(9), top_lock_count_cur.total, chr(9) ;
+  	    --raise notice '%', chr(10);	  
+    END LOOP;
+
+    raise notice '-------------------- % %', chr(10), chr(10);
+
+    raise notice '-------------------- ' ;
+    raise notice 'Top 20 Backend Type (counts) ';
+    raise notice '-------------------- ';
+   
+    --
+    -- header for top backend types (counts)
+    --
+    raise notice '% % % % ', format('%-40s','backend_type'), chr(9), 'total', chr(10) ;
+   
+    FOR top_backend_count_cur IN
+		select
+			datname,
+			format('%-40s',backend_type) as backend_type,
+			count(*) as total
+		from
+			epg_stats.get_stat_activity_hist(g_ts, g_interval)
+		where 
+			datname=current_database() and
+			state != 'idle'
+		group by
+			datname,
+			backend_type
+		order by 3 desc
+		limit 20
+    loop	    
+	    raise notice '% % % % ', top_backend_count_cur.backend_type, chr(9), top_backend_count_cur.total, chr(9) ;
+    END LOOP;
+
+    raise notice '-------------------- % %', chr(10), chr(10);
+
+    raise notice '-------------------- % ', chr(10);
+    raise notice 'Memory Request Per Snapshot (mb) %', chr(10);
+    raise notice '-------------------- %', chr(10);
+
+	--
+	-- header for memory pressure
+   	--
+    raise notice '% % % % % % % %', format('%-40s','begin_ts'), chr(9), 
+								 	format('%-40s','buffers_alloc(mb)'), chr(9), 
+								 	format('%-40s','buffers_clean(mb)'), chr(9),
+								 	format('%-40s','maxwritten_clean'), chr(10) ;
+	FOR memory_pressure_cur IN
+		select
+			format('%-40s', (buffers_alloc * 8192)/1024/1024) as buffers_alloc ,
+		    format('%-40s', (buffers_clean * 8192)/1024/1024) as buffers_clean ,
+			format('%-40s', (maxwritten_clean * 8192)/1024/1024) as maxwritten_clean ,
+			format('%-40s', to_timestamp(begin_ts)) as begin_ts
+		from
+			epg_stats.get_series_bgwriter_hist(g_ts, g_interval)
+	LOOP
+	    raise notice '% % % % % % % %', memory_pressure_cur.begin_ts, chr(9), 
+										memory_pressure_cur.buffers_alloc, chr(9), 
+										memory_pressure_cur.buffers_clean, chr(9), 
+										memory_pressure_cur.maxwritten_clean, chr(9) ;
+	END LOOP;
+
+	raise notice '-------------------- % %', chr(10), chr(10);
+
+	raise notice '-------------------- % ', chr(10);
+    raise notice 'Checkpoint Stats %', chr(10);
+    raise notice '-------------------- %', chr(10);
+
+	--
+	-- header for checkpoints
+   	--
+    raise notice '% % % % % % % % % % % % ', format('%-40s','begin_ts'), chr(9),
+							 format('%-40s','checkpoints_timed'), chr(9), 
+							 format('%-40s','checkpoints_requested'), chr(9), 
+							 format('%-40s','checkpoint_write_time'), chr(9), 
+							 format('%-40s','checkpoint_sync_time'), chr(9), 
+							 format('%-40s','buffers_checkpoint(mb)'), chr(10) ;
+
+
+	if (cast(pg_version as integer) <= 16) then
+		FOR checkpoints_cur IN
+			select
+				format('%-40s', to_timestamp(begin_ts)) as begin_ts,
+				format('%-40s', checkpoints_timed) as checkpoints_timed ,
+				format('%-40s', checkpoints_req) as checkpoints_requested ,
+				format('%-40s', checkpoint_write_time) as checkpoint_write_time ,
+				format('%-40s', checkpoint_sync_time) as checkpoint_sync_time ,
+				format('%-40s', (buffers_checkpoint*8192)/1024/1024) as buffers_checkpoint
+			from
+				epg_stats.get_series_bgwriter_hist(g_ts, g_interval)
+		LOOP
+		    raise notice '% % % % % % % % % % % %', checkpoints_cur.begin_ts, chr(9), 
+													checkpoints_cur.checkpoints_timed, chr(9),
+													checkpoints_cur.checkpoints_requested, chr(9),
+													checkpoints_cur.checkpoint_write_time, chr(9),
+													checkpoints_cur.checkpoint_sync_time, chr(9),
+													checkpoints_cur.buffers_checkpoint, chr(9) ;
+		END LOOP;
+	else
+		FOR checkpoints_cur IN
+			select
+				format('%-40s', to_timestamp(begin_ts)) as begin_ts,
+				format('%-40s', num_timed) as checkpoints_timed ,
+				format('%-40s', num_requested) as checkpoints_requested ,
+				format('%-40s', write_time) as checkpoint_write_time ,
+				format('%-40s', sync_time) as checkpoint_sync_time ,
+				format('%-40s', (buffers_writtent*8192)/1024/1024) as buffers_checkpoint
+			from
+				epg_stats.get_series_checkpointer_hist(g_ts, g_interval)
+		LOOP
+		    raise notice '% % % % % % % % % % % %', checkpoints_cur.begin_ts, chr(9), 
+													checkpoints_cur.checkpoints_timed, chr(9),
+													checkpoints_cur.checkpoints_requested, chr(9),
+													checkpoints_cur.checkpoint_write_time, chr(9),
+													checkpoints_cur.checkpoint_sync_time, chr(9),
+													checkpoints_cur.buffers_checkpoint, chr(9) ;
+		END LOOP;
+
+	end if;
+
+	raise notice '-------------------- % %', chr(10), chr(10);
+
+	raise notice '-------------------- % ', chr(10);
+    raise notice 'Archiver Stats (mb) %', chr(10);
+    raise notice '-------------------- %', chr(10);
+
+	--
+	-- header for archiver stats
+   	--
+    raise notice '% % % % % % % %', format('%-40s','begin_ts'), chr(9), 
+								 	format('%-40s','end_ts(mb)'), chr(9), 
+								 	format('%-40s','archived_count'), chr(9),
+								 	format('%-40s','failed_count'), chr(10) ;
+	FOR archiver_cur IN
+		select
+			format('%-40s',to_timestamp(begin_ts)) as begin_ts,
+			format('%-40s',to_timestamp(end_ts)) as end_ts,
+			format('%-40s',archived_count) as archived_count,
+			format('%-40s',failed_count) as failed_count
+		from
+			epg_stats.get_series_archiver_hist(g_ts, g_interval)
+		order by
+			begin_ts desc
+	LOOP
+	    raise notice '% % % % % % % %', archiver_cur.begin_ts, chr(9), 
+										archiver_cur.end_ts, chr(9), 
+										archiver_cur.archived_count, chr(9), 
+										archiver_cur.failed_count, chr(9) ;
+	END LOOP;
+
+	raise notice '-------------------- % %', chr(10), chr(10);
+
     --
     -- table and index cache hit ratios
     --
@@ -171,12 +388,11 @@ begin
     raise notice '------------- %', chr(10);   
    
     raise notice '-------------- %', chr(10);
-    raise notice 'Top 20 Seq Scan Tables %', chr(10);
+    raise notice 'Top 10 Seq Scan Read Tables %', chr(10);
     raise notice '-------------- %', chr(10);      
      
-
     --
-    -- header for top sequencial read tables
+    -- header for top sequential read tables
     --   
     raise notice '% % % % % % % % % % % % % % ', 
    					format('%-20s','seq_scan_ratio'), chr(9), 
@@ -188,22 +404,79 @@ begin
    					format('%-20s','idx_tup_fetch'), chr(10)   					
    				;
    
+    FOR seq_scan_tables IN
+		select
+			100 * seq_scan / case
+				when (idx_scan + seq_scan) = 0 then 1
+				else (idx_scan + seq_scan)
+			end as seq_scan_ratio,
+			schemaname,
+			relname,
+			seq_scan,
+			idx_scan,
+			seq_tup_read,
+			idx_tup_fetch
+		from
+			epg_stats.get_stat_all_tables_hist(g_ts, g_interval)
+		where
+			schemaname not in ('information_schema', 'pg_catalog', 'pg_toast', 'epg_stats')
+			and idx_scan is not null
+			and seq_scan is not null
+		order by
+			1 desc,6 desc
+		limit 10
+    loop
+	    raise notice '% % % % % % % % % % % % % % ', 
+	   		format('%-20s', seq_scan_tables.seq_scan_ratio), chr(9),
+	   		format('%-50s',seq_scan_tables.schemaname), chr(9),
+	   		format('%-60s',seq_scan_tables.relname), chr(9),
+	   		format('%-20s',seq_scan_tables.seq_scan), chr(9),
+	   		format('%-20s',seq_scan_tables.idx_scan), chr(9),
+	   		format('%-20s',seq_scan_tables.seq_tup_read), chr(9),	   		
+	   		format('%-20s',seq_scan_tables.idx_tup_fetch), chr(10)	   		
+	   		;
+    END LOOP;
+    
+    raise notice '-------------------- % %', chr(10), chr(10);
+   
+	raise notice '-------------- %', chr(10);
+    raise notice 'Top 10 Seq Scan Requested Tables %', chr(10);
+    raise notice '-------------- %', chr(10);      
+     
+    --
+    -- header for top sequential read tables
+    --   
+    raise notice '% % % % % % % % % % % % % % ', 
+   					format('%-20s','seq_scan_ratio'), chr(9), 
+   					format('%-50s','schemaname'), chr(9), 
+   					format('%-60s','relname'), chr(9),
+   					format('%-20s','seq_scan'), chr(9),
+   					format('%-20s','idx_scan'), chr(9),
+   					format('%-20s','seq_tup_read'), chr(9),
+   					format('%-20s','idx_tup_fetch'), chr(10)   					
+   				;
    
     FOR seq_scan_tables IN
-      select 
-        100 * seq_scan / case when (idx_scan + seq_scan) = 0 then 1 else (idx_scan + seq_scan) end as seq_scan_ratio, 
-        schemaname, 
-        relname, 
-        seq_scan, 
-        idx_scan, 
-        seq_tup_read, 
-        idx_tup_fetch 
-      from epg_stats.get_stat_all_tables_hist(g_ts, g_interval)
-      where schemaname not in ('information_schema','pg_catalog','pg_toast')
-        AND idx_scan IS NOT NULL
-        AND seq_scan IS NOT NULL
-      order by 1 desc
-      limit 20
+		select
+			100 * seq_scan / case
+				when (idx_scan + seq_scan) = 0 then 1
+				else (idx_scan + seq_scan)
+			end as seq_scan_ratio,
+			schemaname,
+			relname,
+			seq_scan,
+			idx_scan,
+			seq_tup_read,
+			idx_tup_fetch
+		from
+			epg_stats.get_stat_all_tables_hist(g_ts, g_interval)
+		where
+			schemaname not in ('information_schema', 'pg_catalog', 'pg_toast', 'epg_stats')
+			and idx_scan is not null
+			and seq_scan is not null
+		order by
+			1 desc,4 desc
+		limit 10
     loop
 	    
 	    raise notice '% % % % % % % % % % % % % % ', 
@@ -219,7 +492,7 @@ begin
     END LOOP;
     
     raise notice '-------------------- % %', chr(10), chr(10);
-   
+
    
     raise notice '-------------- %', chr(10);
     raise notice 'Cache HIT Ratio for tables  %', chr(10);
@@ -228,244 +501,279 @@ begin
     --
     -- header for top sequencial read tables
     --
-    raise notice '% % % % % % % % % % ', 
+    raise notice '% % % % % % % % ', 
    					format('%-50s','table_name'), chr(9), 
-   					format('%-20s','disk_hits'), chr(9), 
-   					format('%-20s','pct_disk_hits'), chr(9),
-   					format('%-20s','pct_cache_hits'), chr(9),
-   					format('%-20s','total_hits'), chr(10)
-   				;    
+   					format('%-20s','from_disk'), chr(9), 
+   					format('%-20s','from_cache'), chr(9),
+   					format('%-20s','cache_hit_ratio_percentage'), chr(10);    
 
     FOR table_cache_hit_ratio IN
-      with 
-      all_tables as
-      (
-      SELECT  *
-      FROM    (
-          SELECT  'all'::text as table_name, 
-              sum( (coalesce(heap_blks_read,0) + coalesce(idx_blks_read,0) + coalesce(toast_blks_read,0) + coalesce(tidx_blks_read,0)) ) as from_disk, 
-              sum( (coalesce(heap_blks_hit,0)  + coalesce(idx_blks_hit,0)  + coalesce(toast_blks_hit,0)  + coalesce(tidx_blks_hit,0))  ) as from_cache    
-          FROM    epg_stats.get_statio_all_tables_hist(g_ts, g_interval)  
-          ) a
-      WHERE   (from_disk + from_cache) > 0 -- discard tables without hits
-      ),
-      tables as 
-      (
-      SELECT  *
-      FROM    (
-          SELECT  relname as table_name, 
-              ( (coalesce(heap_blks_read,0) + coalesce(idx_blks_read,0) + coalesce(toast_blks_read,0) + coalesce(tidx_blks_read,0)) ) as from_disk, 
-              ( (coalesce(heap_blks_hit,0)  + coalesce(idx_blks_hit,0)  + coalesce(toast_blks_hit,0)  + coalesce(tidx_blks_hit,0))  ) as from_cache    
-          FROM    epg_stats.get_statio_all_tables_hist(g_ts, g_interval) 
-          ) a
-      WHERE   (from_disk + from_cache) > 0 -- discard tables without hits
-      )
-      SELECT  table_name as table_name,
-          from_disk as disk_hits,
-          round((from_disk::numeric / (from_disk + from_cache)::numeric)*100.0,2) as pct_disk_hits,
-          round((from_cache::numeric / (from_disk + from_cache)::numeric)*100.0,2) as pct_cache_hits,
-          (from_disk + from_cache) as total_hits
-      FROM    (SELECT * FROM all_tables UNION ALL SELECT * FROM tables) a
-      ORDER   BY (case when table_name = 'all' then 0 else 1 end), pct_disk_hits desc
-      limit 20
+     	select
+			*
+		from
+			(
+			select
+				relname as table_name,
+				( (coalesce(heap_blks_read, 0) + coalesce(idx_blks_read, 0) + coalesce(toast_blks_read, 0) + coalesce(tidx_blks_read, 0)) ) as from_disk,
+				( (coalesce(heap_blks_hit, 0) + coalesce(idx_blks_hit, 0) + coalesce(toast_blks_hit, 0) + coalesce(tidx_blks_hit, 0)) ) as from_cache,
+				case
+					when (heap_blks_hit + heap_blks_read) = 0 then 0
+					else round(100.0 * heap_blks_hit / (heap_blks_hit + heap_blks_read), 2)
+				end as cache_hit_ratio_percentage
+			from
+				epg_stats.get_statio_all_tables_hist(g_ts, g_interval)
+		) t
+		order by
+			cache_hit_ratio_percentage,
+			from_disk desc
+		limit 10
       loop
 	      
-	      raise notice '% % % % % % % % % % ', 
+	      raise notice '% % % % % % % % ', 
    					format('%-50s',table_cache_hit_ratio.table_name), chr(9), 
-   					format('%-20s',table_cache_hit_ratio.disk_hits), chr(9), 
-   					format('%-20s',table_cache_hit_ratio.pct_disk_hits), chr(9),
-   					format('%-20s',table_cache_hit_ratio.pct_cache_hits), chr(9),
-   					format('%-20s',table_cache_hit_ratio.total_hits), chr(10)
+   					format('%-20s',table_cache_hit_ratio.from_disk), chr(9), 
+   					format('%-20s',table_cache_hit_ratio.from_cache), chr(9),
+   					format('%-20s',table_cache_hit_ratio.cache_hit_ratio_percentage), chr(10)
    				;    
    			
     END LOOP;
    
-    raise notice '-------------------- % %', chr(10), chr(10);
-   
-    raise notice '---------- %', chr(10);
-    raise notice 'Temp Usage %', chr(10);
-    raise notice '---------- %', chr(10);
-   
-    raise notice '---------- %', chr(10);
-    raise notice 'Top 10 Temp Usage By Queries %', chr(10);
-    raise notice '---------- %', chr(10);
-   
-	raise notice '% % % % % % % % % % % % % % ', 
-   					format('%-20s','total_exec_time'), chr(9), 
-   					format('%-20s','ncalls'), chr(9), 
-   					format('%-20s','avg_exec_time_sec'), chr(9),
-   					format('%-20s','sync_io_time'), chr(9),
-   					format('%-20s','temp_blks_written'), chr(9),
-   					format('%-20s','queryid'), chr(9),
-   					'query', chr(10)   					
-   				; 
-   
-    FOR temp_query_cur IN
-        SELECT
-          INTERVAL '1 millisecond' * total_time AS total_exec_time,
-          to_char(calls, 'FM999G999G999G990') AS ncalls,
-          to_char((total_time / calls) / 1000, 'FM999G999G990.999') AS avg_exec_time_sec,
-          INTERVAL '1 millisecond' * (blk_read_time + blk_write_time) AS sync_io_time,
-          temp_blks_written,
-          temp_blks_written,
-          queryid as queryid,
-          --substring(replace(query,chr(10),' '),0,200) AS query
-          substring(replace(query,chr(10),' '),0,200) AS query
-        FROM
-          epg_stats.get_stat_statements_hist(g_ts, g_interval)    
-        WHERE
-           temp_blks_written > 0
-        ORDER BY
-            temp_blks_written DESC
-        LIMIT 10
-    loop
-	    
+	if (pg_stat_statements_installed=1) then
+	    raise notice '-------------------- % %', chr(10), chr(10);
+	   
+	    raise notice '---------- %', chr(10);
+	    raise notice 'Temp Usage %', chr(10);
+	    raise notice '---------- %', chr(10);
+	   
+	    raise notice '---------- %', chr(10);
+	    raise notice 'Top 10 Temp Usage By Queries %', chr(10);
+	    raise notice '---------- %', chr(10);
+	   
 		raise notice '% % % % % % % % % % % % % % ', 
-	   					format('%-20s',temp_query_cur.total_exec_time), chr(9), 
-	   					format('%-20s',temp_query_cur.ncalls), chr(9), 
-	   					format('%-20s',temp_query_cur.avg_exec_time_sec), chr(9),
-	   					format('%-20s',temp_query_cur.sync_io_time), chr(9),
-	   					format('%-20s',temp_query_cur.temp_blks_written), chr(9),
-	   					format('%-20s',temp_query_cur.queryid), chr(9),
-	   					temp_query_cur.query, chr(10)   					
-	   				; 	    	  
-    END LOOP;
-   
-   
-    raise notice '-------------------- % %', chr(10), chr(10);
-   
-    raise notice '---------- %', chr(10);
-    raise notice 'Top 20 Long Running Queries %', chr(10);
-    raise notice '---------- %', chr(10);
-   
-	raise notice '% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %', 
-   					format('%-20s','ms_per_execution'), chr(9), 
-   					format('%-20s','ncalls'), chr(9), 
-   					format('%-20s','total_exec_time'), chr(9),
-   					format('%-20s','mean_time'), chr(9),
-   					format('%-20s','rrows'), chr(9),
-   					format('%-20s','shared_blks_hit'), chr(9),
-   					format('%-20s','shared_blks_read'), chr(9),
-   					format('%-20s','local_blks_hit'), chr(9),
-   					format('%-20s','local_blks_read'), chr(9),
-   					format('%-20s','temp_blks_read'), chr(9),
-   					format('%-20s','temp_blks_written'), chr(9),
-   					format('%-20s','blk_read_time'), chr(9),
-   					format('%-20s','blk_write_time'), chr(9),
-   					format('%-20s','userid'), chr(9),
-   					format('%-20s','queryid'), chr(9),
-   					'query', chr(10)   					
-   				;    
-      
-
-    FOR long_query_cur IN 
-        select 
-          (INTERVAL '1 millisecond' * total_time) / calls as ms_per_execution, 
-          to_char(calls, 'FM999G999G999G990') AS ncalls,
-          INTERVAL '1 millisecond' * total_time AS total_exec_time, 
-          mean_time, 
-          rows as rrows, 
-          shared_blks_hit, shared_blks_read, 
-          local_blks_hit, local_blks_read, 
-          temp_blks_read, temp_blks_written, 
-          blk_read_time, blk_write_time, userid, queryid,
-          substring(replace(replace(query,chr(10),' '),chr(13),' '),0,200) AS query
-        from epg_stats.get_stat_statements_hist(g_ts, g_interval) 
-        order by 1 desc
-        limit 20
-    loop
-	    
+	   					format('%-20s','total_exec_time'), chr(9), 
+	   					format('%-20s','ncalls'), chr(9), 
+	   					format('%-20s','avg_exec_time_sec'), chr(9),
+	   					format('%-20s','sync_io_time'), chr(9),
+	   					format('%-20s','temp_blks_written'), chr(9),
+	   					format('%-20s','queryid'), chr(9),
+	   					'query', chr(10)   					
+	   				; 
+	   
+	    FOR temp_query_cur IN
+			select
+			      interval '1 millisecond' * total_time as total_exec_time,
+			      to_char(calls, 'FM999G999G999G990') as ncalls,
+			      to_char((total_time / calls) / 1000, 'FM999G999G990.999') as avg_exec_time_sec,
+			      interval '1 millisecond' * (blk_read_time + blk_write_time) as sync_io_time,
+			      temp_blks_written,
+			      queryid as queryid,
+				  substring(replace(query, chr(10), ' '), 0, 200) as query
+			from
+				  epg_stats.get_stat_statements_hist(g_ts, g_interval)
+			where
+				temp_blks_written > 0
+			order by
+				temp_blks_written desc
+			limit 10
+	    loop
+		    
+			raise notice '% % % % % % % % % % % % % % ', 
+		   					format('%-20s',temp_query_cur.total_exec_time), chr(9), 
+		   					format('%-20s',temp_query_cur.ncalls), chr(9), 
+		   					format('%-20s',temp_query_cur.avg_exec_time_sec), chr(9),
+		   					format('%-20s',temp_query_cur.sync_io_time), chr(9),
+		   					format('%-20s',temp_query_cur.temp_blks_written), chr(9),
+		   					format('%-20s',temp_query_cur.queryid), chr(9),
+		   					temp_query_cur.query, chr(10)   					
+		   				; 	    	  
+	    END LOOP;
+	   
+	   
+	    raise notice '-------------------- % %', chr(10), chr(10);
+	   
+	    raise notice '---------- %', chr(10);
+	    raise notice 'Top 10 Long Running Queries %', chr(10);
+	    raise notice '---------- %', chr(10);
+	   
 		raise notice '% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %', 
-   					format('%-20s',long_query_cur.ms_per_execution), chr(9), 
-   					format('%-20s',long_query_cur.ncalls), chr(9), 
-   					format('%-20s',long_query_cur.total_exec_time), chr(9),
-   					format('%-20s',long_query_cur.mean_time), chr(9),
-   					format('%-20s',long_query_cur.rrows), chr(9),
-   					format('%-20s',long_query_cur.shared_blks_hit), chr(9),
-   					format('%-20s',long_query_cur.shared_blks_read), chr(9),
-   					format('%-20s',long_query_cur.local_blks_hit), chr(9),
-   					format('%-20s',long_query_cur.local_blks_read), chr(9),
-   					format('%-20s',long_query_cur.temp_blks_read), chr(9),
-   					format('%-20s',long_query_cur.temp_blks_written), chr(9),
-   					format('%-20s',long_query_cur.blk_read_time), chr(9),
-   					format('%-20s',long_query_cur.blk_write_time), chr(9),
-   					format('%-20s',long_query_cur.userid), chr(9),
-   					format('%-20s',long_query_cur.queryid), chr(9),
-   					long_query_cur.query, chr(10)   					
-   				;  	    	    
-    END LOOP;
-   
+	   					format('%-20s','ms_per_execution'), chr(9), 
+	   					format('%-20s','ncalls'), chr(9), 
+	   					format('%-20s','total_exec_time'), chr(9),
+	   					format('%-20s','mean_time'), chr(9),
+	   					format('%-20s','rrows'), chr(9),
+	   					format('%-20s','shared_blks_hit'), chr(9),
+	   					format('%-20s','shared_blks_read'), chr(9),
+	   					format('%-20s','local_blks_hit'), chr(9),
+	   					format('%-20s','local_blks_read'), chr(9),
+	   					format('%-20s','temp_blks_read'), chr(9),
+	   					format('%-20s','temp_blks_written'), chr(9),
+	   					format('%-20s','blk_read_time'), chr(9),
+	   					format('%-20s','blk_write_time'), chr(9),
+	   					format('%-20s','userid'), chr(9),
+	   					format('%-20s','queryid'), chr(9),
+	   					'query', chr(10)   					
+	   				;    
+	      
+	    FOR long_query_cur IN 
+			select
+				(interval '1 millisecond' * total_time) / calls as ms_per_execution,
+				to_char(calls, 'FM999G999G999G990') as ncalls,
+				interval '1 millisecond' * total_time as total_exec_time,
+				mean_time,
+				rows as rrows,
+				shared_blks_hit,
+				shared_blks_read,
+				local_blks_hit,
+				local_blks_read,
+				temp_blks_read,
+				temp_blks_written,
+				blk_read_time,
+				blk_write_time,
+				userid,
+				queryid,
+				substring(replace(replace(query, chr(10), ' '), chr(13), ' '), 0, 200) as query
+			from
+				epg_stats.get_stat_statements_hist(g_ts,
+				g_interval)
+			order by
+				total_time desc
+			limit 10
+	    loop
+		    
+			raise notice '% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %', 
+	   					format('%-20s',long_query_cur.ms_per_execution), chr(9), 
+	   					format('%-20s',long_query_cur.ncalls), chr(9), 
+	   					format('%-20s',long_query_cur.total_exec_time), chr(9),
+	   					format('%-20s',long_query_cur.mean_time), chr(9),
+	   					format('%-20s',long_query_cur.rrows), chr(9),
+	   					format('%-20s',long_query_cur.shared_blks_hit), chr(9),
+	   					format('%-20s',long_query_cur.shared_blks_read), chr(9),
+	   					format('%-20s',long_query_cur.local_blks_hit), chr(9),
+	   					format('%-20s',long_query_cur.local_blks_read), chr(9),
+	   					format('%-20s',long_query_cur.temp_blks_read), chr(9),
+	   					format('%-20s',long_query_cur.temp_blks_written), chr(9),
+	   					format('%-20s',long_query_cur.blk_read_time), chr(9),
+	   					format('%-20s',long_query_cur.blk_write_time), chr(9),
+	   					format('%-20s',long_query_cur.userid), chr(9),
+	   					format('%-20s',long_query_cur.queryid), chr(9),
+	   					long_query_cur.query, chr(10)   					
+	   				;  	    	    
+	    END LOOP;
+
+   		raise notice '-------------------- % %' , chr(10), chr(10);
+
+		raise notice '---------- %', chr(10);
+	    raise notice 'Top 10 Most Executed Queries %', chr(10);
+	    raise notice '---------- %', chr(10);
+	   
+		raise notice '% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %', 
+	   					format('%-20s','ms_per_execution'), chr(9), 
+	   					format('%-20s','ncalls'), chr(9), 
+	   					format('%-20s','total_exec_time'), chr(9),
+	   					format('%-20s','mean_time'), chr(9),
+	   					format('%-20s','rrows'), chr(9),
+	   					format('%-20s','shared_blks_hit'), chr(9),
+	   					format('%-20s','shared_blks_read'), chr(9),
+	   					format('%-20s','local_blks_hit'), chr(9),
+	   					format('%-20s','local_blks_read'), chr(9),
+	   					format('%-20s','temp_blks_read'), chr(9),
+	   					format('%-20s','temp_blks_written'), chr(9),
+	   					format('%-20s','blk_read_time'), chr(9),
+	   					format('%-20s','blk_write_time'), chr(9),
+	   					format('%-20s','userid'), chr(9),
+	   					format('%-20s','queryid'), chr(9),
+	   					'query', chr(10)   					
+	   				;    
+	      
+	    FOR most_query_cur IN 
+			select
+				(interval '1 millisecond' * total_time) / calls as ms_per_execution,
+				to_char(calls, 'FM999G999G999G990') as ncalls,
+				interval '1 millisecond' * total_time as total_exec_time,
+				mean_time,
+				rows as rrows,
+				shared_blks_hit,
+				shared_blks_read,
+				local_blks_hit,
+				local_blks_read,
+				temp_blks_read,
+				temp_blks_written,
+				blk_read_time,
+				blk_write_time,
+				userid,
+				queryid,
+				substring(replace(replace(query, chr(10), ' '), chr(13), ' '), 0, 200) as query
+			from
+				epg_stats.get_stat_statements_hist(g_ts,
+				g_interval)
+			order by
+				calls desc
+			limit 10
+	    loop
+		    
+			raise notice '% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %', 
+	   					format('%-20s',most_query_cur.ms_per_execution), chr(9), 
+	   					format('%-20s',most_query_cur.ncalls), chr(9), 
+	   					format('%-20s',most_query_cur.total_exec_time), chr(9),
+	   					format('%-20s',most_query_cur.mean_time), chr(9),
+	   					format('%-20s',most_query_cur.rrows), chr(9),
+	   					format('%-20s',most_query_cur.shared_blks_hit), chr(9),
+	   					format('%-20s',most_query_cur.shared_blks_read), chr(9),
+	   					format('%-20s',most_query_cur.local_blks_hit), chr(9),
+	   					format('%-20s',most_query_cur.local_blks_read), chr(9),
+	   					format('%-20s',most_query_cur.temp_blks_read), chr(9),
+	   					format('%-20s',most_query_cur.temp_blks_written), chr(9),
+	   					format('%-20s',most_query_cur.blk_read_time), chr(9),
+	   					format('%-20s',most_query_cur.blk_write_time), chr(9),
+	   					format('%-20s',most_query_cur.userid), chr(9),
+	   					format('%-20s',most_query_cur.queryid), chr(9),
+	   					most_query_cur.query, chr(10)   					
+	   				;  	    	    
+	    END LOOP;
+    end if;
+
    	raise notice '-------------------- % %' , chr(10), chr(10);
    
-    raise notice '---------- %' , chr(10);
-    raise notice 'Top 20 Bloat Usage By Tables (current) %' , chr(10);
-    raise notice '---------- %' , chr(10);
+    raise notice '-------------------- %' , chr(10);
+    raise notice 'Top 10 Bloated Tables %' , chr(10);
+    raise notice '-------------------- %' , chr(10);
    
-	raise notice '% % % % % % % % % % ', 
-   					format('%-30s','current_database'), chr(9), 
+	raise notice '% % % % % % % % % % % % % %', 
    					format('%-30s','schema_name'), chr(9), 
    					format('%-60s','table_name') , chr(9),
-   					format('%-20s','tbloat'), chr(9),
-   					format('%-20s','wasted_bytes'), chr(10)			
+					format('%-30s','n_dead_tup') , chr(9),
+					format('%-30s','n_live_tup') , chr(9),
+   					format('%-20s','bloat_ratio'), chr(9),
+					format('%-30s','last_vacuum') , chr(9),
+   					format('%-30s','last_autovacuum'), chr(10)			
    				;       
 
-    FOR bloats_curr IN 
-        SELECT
-          distinct
-          current_database() as current_database, 
-          schemaname, 
-          tablename, /*reltuples::bigint, relpages::bigint, otta,*/
-          ROUND((CASE WHEN otta=0 THEN 0.0 ELSE sml.relpages::FLOAT/otta END)::NUMERIC,1) AS tbloat,
-          CASE WHEN relpages < otta THEN 0 ELSE bs*(sml.relpages-otta)::BIGINT END AS wastedbytes
-          --iname, /*ituples::bigint, ipages::bigint, iotta,*/
-          --ROUND((CASE WHEN iotta=0 OR ipages=0 THEN 0.0 ELSE ipages::FLOAT/iotta END)::NUMERIC,1) AS ibloat,
-          --CASE WHEN ipages < iotta THEN 0 ELSE bs*(ipages-iotta) END AS wastedibytes
-        FROM (
-          SELECT
-            schemaname, tablename, cc.reltuples, cc.relpages, bs,
-            CEIL((cc.reltuples*((datahdr+ma-
-              (CASE WHEN datahdr%ma=0 THEN ma ELSE datahdr%ma END))+nullhdr2+4))/(bs-20::FLOAT)) AS otta,
-            COALESCE(c2.relname,'?') AS iname, COALESCE(c2.reltuples,0) AS ituples, COALESCE(c2.relpages,0) AS ipages,
-            COALESCE(CEIL((c2.reltuples*(datahdr-12))/(bs-20::FLOAT)),0) AS iotta -- very rough approximation, assumes all cols
-          FROM (
-            SELECT
-              ma,bs,schemaname,tablename,
-              (datawidth+(hdr+ma-(CASE WHEN hdr%ma=0 THEN ma ELSE hdr%ma END)))::NUMERIC AS datahdr,
-              (maxfracsum*(nullhdr+ma-(CASE WHEN nullhdr%ma=0 THEN ma ELSE nullhdr%ma END))) AS nullhdr2
-            FROM (
-              SELECT
-                schemaname, tablename, hdr, ma, bs,
-                SUM((1-null_frac)*avg_width) AS datawidth,
-                MAX(null_frac) AS maxfracsum,
-                hdr+(
-                  SELECT 1+COUNT(*)/8
-                  FROM pg_stats s2
-                  WHERE null_frac<>0 AND s2.schemaname = s.schemaname AND s2.tablename = s.tablename
-              ) AS nullhdr
-              FROM pg_stats s, (
-                SELECT
-                  (SELECT current_setting('block_size')::NUMERIC) AS bs,
-                  CASE WHEN SUBSTRING(v,12,3) IN ('8.0','8.1','8.2') THEN 27 ELSE 23 END AS hdr,
-                  CASE WHEN v ~ 'mingw32' THEN 8 ELSE 4 END AS ma
-                FROM (SELECT version() AS v) AS foo
-              ) AS constants
-              GROUP BY 1,2,3,4,5
-            ) AS foo
-          ) AS rs
-          JOIN pg_class cc ON cc.relname = rs.tablename
-          JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = rs.schemaname AND nn.nspname <> 'information_schema'
-          LEFT JOIN pg_index i ON indrelid = cc.oid
-          LEFT JOIN pg_class c2 ON c2.oid = i.indexrelid
-        ) AS sml
-        ORDER BY wastedbytes desc
-        limit 20
+    FOR bloats_curr IN  	        
+		select
+			format('%-30s',schemaname) as schemaname,
+			format('%-60s',relname) as relname,
+		    format('%-30s',n_dead_tup) as n_dead_tup,
+		    format('%-30s',n_live_tup) as n_live_tup,
+		    format('%-20s',1-round(n_live_tup/cast(n_live_tup+n_dead_tup as numeric),2)) as bloat_ratio,
+		    format('%-30s',last_autovacuum) as last_autovacuum,
+		    format('%-30s',last_vacuum) as last_vacuum
+		from
+			epg_stats.get_stat_all_tables_hist(cast(extract(epoch from now()) as bigint),
+			interval '1 hours')
+		where
+			schemaname not in ('pg_catalog', 'information_schema') and
+			n_live_tup+n_dead_tup > 0
+		order by 5 desc
+		limit 10
     loop	    
-	    raise notice '% % % % % % % % % % ', 
-   					format('%-30s',bloats_curr.current_database), chr(9), 
-   					format('%-30s',bloats_curr.schemaname), chr(9), 
-   					format('%-60s',bloats_curr.tablename) , chr(9),
-   					format('%-20s',bloats_curr.tbloat), chr(9),
-   					format('%-20s',bloats_curr.wastedbytes), chr(10)			
+	    raise notice '% % % % % % % % % % % % % % ', 
+   					bloats_curr.schemaname, chr(9), 
+   					format('%-30s',bloats_curr.relname), chr(9), 
+   					format('%-60s',bloats_curr.n_dead_tup) , chr(9),
+   					format('%-20s',bloats_curr.n_live_tup), chr(9),
+   					format('%-20s',bloats_curr.bloat_ratio), chr(9),	
+					format('%-20s',bloats_curr.last_vacuum), chr(9),
+					format('%-20s',bloats_curr.last_autovacuum), chr(10)		
    				; 	    	    
     END LOOP;
    
@@ -483,16 +791,21 @@ begin
    				;       
    
     FOR table_wraparound_curr IN 
-        SELECT 
-            n.oid::regclass as tablespacename,
-            c.oid::regclass as tablename,
-            age(c.relfrozenxid) as age,
-            pg_size_pretty(pg_total_relation_size(c.oid)) as tablesize
-        FROM pg_class c
-        JOIN pg_namespace n on c.relnamespace = n.oid
-        WHERE relkind IN ('r', 't', 'm') 
-        AND n.nspname NOT IN ('pg_toast')
-        ORDER BY 3 DESC LIMIT 20
+		select
+			n.oid::regclass as tablespacename,
+			c.oid::regclass as tablename,
+			age(c.relfrozenxid) as age,
+			pg_size_pretty(pg_total_relation_size(c.oid)) as tablesize
+		from
+			pg_class c
+		join pg_namespace n on
+			c.relnamespace = n.oid
+		where
+			relkind in ('r', 't', 'm')
+			and n.nspname not in ('pg_toast')
+		order by
+			3 desc
+		limit 20
     loop
 	    
 	   	raise notice '% % % % % % % % ', 
@@ -506,6 +819,7 @@ begin
    
     raise notice '-------------------- % %', chr(10), chr(10); 
    
+/*
     raise notice '---------- %', chr(10);
     raise notice 'Top 20 Largest Tables (current) %', chr(10);
     raise notice '---------- %', chr(10);
@@ -546,7 +860,8 @@ begin
    				; 
    				    
     END LOOP;
-   
+   */
+
     raise notice '-------------------- % %', chr(10), chr(10);
     raise notice '---------- %', chr(10);
     raise notice 'General Parameters %', chr(10);
@@ -645,7 +960,7 @@ begin
         SELECT name, setting, category FROM epg_stats.get_stat_settings_hist(g_ts, g_interval)
           where name in ('fsync','wal_sync_method','synchronous_commit','wal_writer_delay', 'wal_writer_delay', 'wal_writer_flush_after',
                  'checkpoint_timeout','checkpoint_completion_target','checkpoint_flush_after','max_wal_size','commit_delay',
-                 'wal_recycle','wal_compression','full_page_writes','wal_level')
+                 'wal_recycle','wal_compression','full_page_writes','wal_level','wal_buffers')
     loop
 	    
 	    raise notice '% % % % % % ', 
@@ -662,5 +977,3 @@ END;
 $procedure$
 ;
 
-
---call epg_stats.generate_report (cast(extract (epoch from now()) as bigint), INTERVAL '30 min', 'awr.txt');

@@ -18,6 +18,7 @@ begin
 	execute 'drop table if exists epg_stats.stat_database_hist';
 	execute 'drop table if exists epg_stats.pg_settings_hist';
 	execute 'drop table if exists epg_stats.stat_intervals';
+    execute 'drop table if exists epg_stats.stat_wal_hist';
 end
 $procedure$
 ;

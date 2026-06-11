@@ -9,9 +9,9 @@ declare
   row_data RECORD;
 begin
 
-	drop table if exists temp_results; 
+	drop table if exists temp_get_series_settings_hist_results; 
 
-    CREATE TEMP TABLE IF NOT EXISTS temp_results_get_series_settings_hist (
+    CREATE TEMP TABLE IF NOT EXISTS temp_get_series_settings_hist_results (
 		ts bigint, 
 		name text, 
 		setting text, 
@@ -19,29 +19,46 @@ begin
     ) ON COMMIT DROP;
 
   open c1 for
-	select * from 
-	(
-	select 
-	  ts_timestamp,
-	  ts_epoch as current_snapshot,
-	  lag(ts_epoch) OVER (ORDER BY ts_epoch) AS previous_snapshot
-	from epg_stats.find_interval_snapshots(cast(extract(epoch from now()) as bigint), '1 day'::interval) order by 1 desc
-	) tt
-	where previous_snapshot is not null; 
+	select
+		to_timestamp(current_snapshot),
+		to_timestamp(previous_snapshot),
+		current_snapshot,
+		previous_snapshot,
+		(date_trunc('minute', to_timestamp(current_snapshot))-date_trunc('minute',to_timestamp(previous_snapshot)))::interval as iinterval
+	from
+		(
+		select
+			ts_timestamp,
+			ts_epoch as current_snapshot,
+			lag(ts_epoch) over (
+			order by ts_epoch) as previous_snapshot
+		from
+			epg_stats.find_interval_snapshots(g_ts, g_interval )
+		order by
+			1 desc
+		)t
+	where
+		previous_snapshot is not null;
 
     LOOP
       FETCH c1 INTO row_data;
       EXIT WHEN NOT FOUND;
       -- raise notice '%', row_data.ts_timestamp;
-      insert into temp_results_get_series_settings_hist
-        select * from epg_stats.get_stat_settings_hist(row_data.current_snapshot, (to_timestamp(row_data.current_snapshot)-to_timestamp(row_data.previous_snapshot))::interval);    
+      insert into temp_get_series_settings_hist_results
+	    select 
+	      psh.ts, psh.name, psh.setting, psh.category
+	    from 
+	      epg_stats.pg_settings_hist  psh
+	    WHERE psh.ts IN (row_data.current_snapshot, row_data.previous_snapshot) 
+	    ;  
     END LOOP;
     CLOSE c1;
 
 	return query
-	select * from temp_results_get_series_settings_hist;
-	
-	DROP TABLE IF EXISTS temp_results_get_series_settings_hist;
+	select * from temp_get_series_settings_hist_results;
+
+	drop table if exists temp_get_series_settings_hist_results;
+
 end;
 $function$
 ;

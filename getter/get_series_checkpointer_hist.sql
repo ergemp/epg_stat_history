@@ -1,27 +1,14 @@
 -- DROP FUNCTION epg_stats.get_series_checkpointer_hist(int8, interval);
 
 CREATE OR REPLACE FUNCTION epg_stats.get_series_checkpointer_hist(g_ts bigint, g_interval interval)
- RETURNS TABLE(
- 	begin_ts bigint, 
- 	end_ts bigint, 
- 	num_timed bigint, 
- 	num_requested bigint, 
- 	num_done bigint,
- 	restartpoints_timed bigint, 
- 	restartpoints_req bigint, 
- 	restartpoints_done bigint, 
- 	write_time bigint, 
- 	sync_time bigint, 
- 	buffers_written bigint, 
- 	slru_written bigint,
- 	stats_reset timestamp with time zone)
+ RETURNS TABLE(begin_ts bigint, end_ts bigint, num_timed bigint, num_requested bigint, num_done bigint, restartpoints_timed bigint, restartpoints_req bigint, restartpoints_done bigint, write_time bigint, sync_time bigint, buffers_written bigint, slru_written bigint, stats_reset timestamp with time zone)
  LANGUAGE plpgsql
 AS $function$
 declare 
   c1 REFCURSOR;
   row_data RECORD;
 begin
-	CREATE TEMP TABLE IF NOT EXISTS temp_results_get_series_checkpointer_hist (
+	CREATE TEMP TABLE IF NOT EXISTS temp_get_series_checkpointer_hist_results (
 	 	begin_ts bigint, 
 	 	end_ts bigint, 
 	 	num_timed bigint, 
@@ -38,25 +25,57 @@ begin
 	) ON COMMIT DROP;
 
   open c1 for
-	select 
-	  ts_timestamp,
-	  ts_epoch as current_snapshot,
-	  lag(ts_epoch) OVER (ORDER BY ts_epoch) AS previous_snapshot
-	from epg_stats.find_interval_snapshots(g_ts, g_interval) order by 1 desc;
+	select
+		to_timestamp(current_snapshot),
+		to_timestamp(previous_snapshot),
+		current_snapshot,
+		previous_snapshot,
+		(date_trunc('minute', to_timestamp(current_snapshot))-date_trunc('minute',to_timestamp(previous_snapshot)))::interval as iinterval
+	from
+		(
+		select
+			ts_timestamp,
+			ts_epoch as current_snapshot,
+			lag(ts_epoch) over (
+			order by ts_epoch) as previous_snapshot
+		from
+			epg_stats.find_interval_snapshots(g_ts, g_interval )
+		order by
+			1 desc
+		)t
+	where
+		previous_snapshot is not null;
 
     LOOP
       FETCH c1 INTO row_data;
       EXIT WHEN NOT FOUND;
       -- raise notice '%', row_data.ts_timestamp;
-      insert into temp_results_get_series_checkpointer_hist
-        select * from epg_stats.get_stat_checkpointer_hist(row_data.current_snapshot, (to_timestamp(row_data.current_snapshot)-to_timestamp(row_data.previous_snapshot))::interval);    
+      insert into temp_get_series_checkpointer_hist_results
+	    select 
+	      min(sch.ts), 
+	      max(sch.ts), 
+	      max(sch.num_timed) - min(sch.num_timed) AS num_timed,
+	      max(sch.num_requested) - min(sch.num_requested) AS num_requested,
+	      max(sch.num_done) - min(sch.num_done) AS num_done,
+	      max(sch.restartpoints_timed) - min(sch.restartpoints_timed) AS restartpoints_timed,
+	      max(sch.restartpoints_req) - min(sch.restartpoints_req) AS restartpoints_req,
+	      max(sch.restartpoints_done) - min(sch.restartpoints_done) AS restartpoints_done,
+	      max(sch.write_time) - min(sch.write_time) AS write_time,
+	      max(sch.sync_time) - min(sch.sync_time) AS sync_time,
+	      max(sch.buffers_written) - min(sch.buffers_written) AS buffers_written,
+	      max(sch.slru_written) - min(sch.slru_written) AS slru_written,      
+	      max(sch.stats_reset)      
+	    from 
+	      epg_stats.stat_checkpointer_hist  sch
+	    WHERE sch.ts IN (row_data.current_snapshot, row_data.previous_snapshot)
+	    ;   
     END LOOP;
     CLOSE c1;
 
 	return query
-	select * from temp_results_get_series_checkpointer_hist;
+	select * from temp_get_series_checkpointer_hist_results;
 
-	drop table if exists temp_results_get_series_checkpointer_hist;
+	drop table if exists temp_get_series_checkpointer_hist_results;
 end;
 $function$
 ;

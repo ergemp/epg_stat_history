@@ -19,6 +19,7 @@ begin
     delete from epg_stats.stat_archiver_hist where ts < cast(extract (epoch from nnow - g_interval) as bigint);
     delete from epg_stats.pg_settings_hist where ts < cast(extract (epoch from nnow - g_interval) as bigint);
 	delete from epg_stats.stat_intervals where ts_epoch < cast(extract (epoch from nnow - g_interval) as bigint);
+    delete from epg_stats.stat_wal_hist where ts < cast(extract (epoch from nnow - g_interval) as bigint);
 end
 $procedure$
 ;
