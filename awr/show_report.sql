@@ -317,7 +317,7 @@ begin
 				format('%-40s', num_requested) as checkpoints_requested ,
 				format('%-40s', write_time) as checkpoint_write_time ,
 				format('%-40s', sync_time) as checkpoint_sync_time ,
-				format('%-40s', (buffers_writtent*8192)/1024/1024) as buffers_checkpoint
+				format('%-40s', (buffers_written*8192)/1024/1024) as buffers_checkpoint
 			from
 				epg_stats.get_series_checkpointer_hist(g_ts, g_interval)
 		LOOP

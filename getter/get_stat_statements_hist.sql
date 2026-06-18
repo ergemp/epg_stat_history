@@ -44,12 +44,6 @@ BEGIN
 	    from 
 	      epg_stats.stat_statements_hist  ssh
 		where ssh.ts in (select ts from epg_stats.find_interval_boundaries(g_ts, g_interval))   
-		/*
-	    where ssh.ts between 
-	      (select min(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
-	      and 
-	      (select max(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb)
-		*/
 	    GROUP BY ssh.userid, ssh.dbid, ssh.queryid, ssh.query
 	    ) as tt
 	    where tt.calls > 0
@@ -83,12 +77,6 @@ BEGIN
 	    from 
 	      epg_stats.stat_statements_hist  ssh
 	    where ssh.ts in (select ts from epg_stats.find_interval_boundaries(g_ts, g_interval))   
-		/*      
-	    where ssh.ts between 
-	      (select min(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
-	      and 
-	      (select max(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb)
-		*/
 	    GROUP BY ssh.userid, ssh.dbid, ssh.queryid, ssh.query
 	    ) as tt
 	    where tt.calls > 0
@@ -122,12 +110,6 @@ BEGIN
 	    from 
 	      epg_stats.stat_statements_hist  ssh
 	    where ssh.ts in (select ts from epg_stats.find_interval_boundaries(g_ts, g_interval)) 
-		/*          
-	    where ssh.ts between 
-	      (select min(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb) 
-	      and 
-	      (select max(fb.ts) from epg_stats.find_interval_boundaries(g_ts, g_interval) fb)
-		*/
 	    GROUP BY ssh.userid, ssh.dbid, ssh.queryid, ssh.query
 	    ) as tt
 	    where tt.calls > 0

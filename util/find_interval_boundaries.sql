@@ -29,7 +29,7 @@ BEGIN
 		epg_stats.stat_intervals,
 		min_ts
 	where
-		epg_stats.stat_intervals.ts_epoch < min_ts.ts_epoch;
+		epg_stats.stat_intervals.ts_epoch <= min_ts.ts_epoch;
 
 
   if (end_ts = begin_ts) then
