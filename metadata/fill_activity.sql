@@ -59,7 +59,7 @@ BEGIN
 				  query,
 				  backend_type
 				FROM pg_stat_activity
-				WHERE state != ''idle''
+				-- WHERE state != ''idle''
 				';	
 
 	execute 'INSERT INTO epg_stats.stat_locks_hist 
@@ -99,7 +99,7 @@ BEGIN
 					granted , 
 					fastpath 
 				FROM pg_locks
-				WHERE mode != ''AccessShareLock''
+				--WHERE mode != ''AccessShareLock''
 				';
 END
 $procedure$

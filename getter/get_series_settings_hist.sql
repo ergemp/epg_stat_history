@@ -9,7 +9,7 @@ declare
   row_data RECORD;
 begin
 
-	drop table if exists temp_get_series_settings_hist_results; 
+	--drop table if exists temp_get_series_settings_hist_results; 
 
     CREATE TEMP TABLE IF NOT EXISTS temp_get_series_settings_hist_results (
 		ts bigint, 
@@ -49,7 +49,7 @@ begin
 	      psh.ts, psh.name, psh.setting, psh.category
 	    from 
 	      epg_stats.pg_settings_hist  psh
-	    WHERE psh.ts IN (row_data.current_snapshot, row_data.previous_snapshot) 
+	    WHERE psh.ts = row_data.previous_snapshot
 	    ;  
     END LOOP;
     CLOSE c1;

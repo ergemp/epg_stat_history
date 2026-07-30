@@ -11,20 +11,28 @@
 ## Session Count 
 
 ```
-select
-	case
-		when state = 'active' then count(1)
-	end as active_sessions,
-	count(1) as total_sessions,
-	to_timestamp(ts)
-from
-	epg_stats.get_stat_activity_hist (cast(extract(epoch from now()) as bigint),
-	'1 days'::interval)
-group by
-	ts,
-	state
-order by
-	ts desc;
+select 
+	 sum(idle_transactions) as idle_transactions,
+	 sum(active_transactions) as active_transactions,
+	 to_timestamp(ts)
+	 from
+	 (
+		select 
+	    case when state='idle' then count(1) end as idle_transactions,
+	    case when state!='idle' then count(1) end as active_transactions,
+		max(ts) as ts
+		from 
+			epg_stats.stat_activity_hist 
+		where 
+			ts >= cast(extract(epoch from clock_timestamp()-'1 days'::interval) as bigint)
+			and usename is not null --ignore internal activities
+			and state is not null --ignore LogicalLauncherMain
+		group by 
+			ts,
+			state
+	 ) t
+	 group by ts
+	 order by ts desc;
 ```
 
 ![Session Count](session_count.png)
@@ -34,8 +42,9 @@ order by
 ```
 select
 	to_timestamp(bgh.begin_ts) as ts,
-	((cast(bgh.buffers_alloc as bigint) * 8192)/ 1024) as bufferes_alloc,
-	(cast(psh.setting as bigint)) as setting
+	(cast(bgh.buffers_alloc as bigint) * 8192)/1024/1024 as bufferes_alloc_mb,
+	(cast(buffers_checkpoint+buffers_clean+buffers_backend as bigint) * 8192)/1024/1024 as buffers_clean_mb,
+	(cast(psh.setting as bigint) * 8192)/1024/1024 as shared_buffers_mb
 from
 	epg_stats.get_series_bgwriter_hist(cast(extract(epoch from now()) as bigint),
 	'1 days'::interval) bgh
@@ -51,7 +60,9 @@ left join
 		name = 'shared_buffers'
 ) psh
 on
-	(psh.ts = bgh.begin_ts);
+	(psh.ts = bgh.begin_ts)
+order by ts desc
+;
 ```
 
 ![Memory Usage](memory_usage.png)
@@ -96,6 +107,7 @@ order by
 ## Checkpointer
 
 ```
+--pg15
 select
 	'num_timed' as checkpoint_type,
 	num_timed as cnt
@@ -111,19 +123,124 @@ from
 	'1 Day'::interval);
 ```
 
+```
+--pg14
+select
+	'num_timed' as checkpoint_type,
+	checkpoints_timed as cnt
+from
+	epg_stats.get_stat_bgwriter_hist(cast(extract(epoch from now()) as bigint),
+	'1 Day'::interval)
+union all
+select
+	'num_requested' as checkpoint_type,
+	checkpoints_req as cnt
+from
+	epg_stats.get_stat_bgwriter_hist(cast(extract(epoch from now()) as bigint),
+	'1 Day'::interval);
+```
 ![Checkpointer](checkpointer.png)
 
 
 ## Transaction Wraparound
 
 ```
+-- db wraparound
 select
-	max(round(100 *(age(datfrozenxid)/ setting::numeric), 8))
+	max(round(100 *(age(datfrozenxid)/ setting::numeric), 8)) as db_wraparound
 from
 	pg_database d
 cross join pg_settings s
 where
 	s.name = 'autovacuum_freeze_max_age';
+
+-- table wraparound
+select
+	round(100 * (max(age(relfrozenxid)) / s.setting::numeric), 8) as table_wraparound
+from
+	pg_class
+cross join pg_settings s
+where
+	s.name = 'autovacuum_freeze_max_age'
+	and
+	pg_class.relkind in ('r', 't')
+group by
+	s.setting
 ```
 
 ![Transaction Wraparound](transaction_wraparound.png)
+
+
+## Top Wait Events
+
+```
+select
+	date_trunc('hour', to_timestamp(ts)),
+	wait_event_type,
+	wait_event,
+	count(*)
+from
+	epg_stats.get_stat_activity_hist(cast(extract(epoch from clock_timestamp()) as bigint), interval '30 min' )
+where
+	state != 'idle'
+	--and usename is not null
+	and wait_event is not null
+group by
+	date_trunc('hour', to_timestamp(ts)),
+	wait_event_type,
+	wait_event
+order by
+	1 desc,
+	4 desc
+	;
+```
+
+
+## Top Bloated Tables
+```
+select
+	schemaname,
+	relname,
+    n_dead_tup,
+    n_live_tup,
+    1-round(n_live_tup/cast(n_live_tup+n_dead_tup as numeric),2) as bloat_ratio,
+    last_autovacuum,
+    last_vacuum
+from
+	epg_stats.get_stat_all_tables_hist(cast(extract(epoch from now()) as bigint),
+	interval '30 min')
+where
+	schemaname not in ('pg_catalog', 'information_schema') and
+	n_live_tup+n_dead_tup > 0
+order by 5 desc
+limit 10
+	;
+```
+
+
+## Top Queries
+```
+-- top executed queries
+select 
+	calls,
+	total_time,
+	blk_read_time,
+	queryid,
+	query
+from 
+	epg_stats.get_stat_statements_hist(cast(extract( epoch from now()) as bigint), '8 hour'::interval)
+order by begin_ts desc, calls desc
+limit 10;
+	  
+-- top time consuming queries
+select 
+	calls,
+	total_time,
+	blk_read_time,
+	queryid,
+	query
+from 
+	epg_stats.get_stat_statements_hist(cast(extract( epoch from now()) as bigint), '8 hour'::interval)
+order by begin_ts desc, total_time desc
+limit 10;
+```
