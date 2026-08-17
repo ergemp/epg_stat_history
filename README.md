@@ -155,7 +155,7 @@ where
 ```
 ### Sample chart for a series data
 
-![Series Chart Example](metabase/memory_usage.png)
+![Series Chart Example](metabase/memory_usage_2.png)
 
 # Examples 
 
