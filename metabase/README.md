@@ -24,7 +24,7 @@ select
 		from 
 			epg_stats.stat_activity_hist 
 		where 
-			ts >= cast(extract(epoch from clock_timestamp()-'1 days'::interval) as bigint)
+			ts >= cast(extract(epoch from clock_timestamp()-'1 hour'::interval) as bigint)
 			and usename is not null --ignore internal activities
 			and state is not null --ignore LogicalLauncherMain
 		group by 
@@ -32,10 +32,39 @@ select
 			state
 	 ) t
 	 group by ts
-	 order by ts desc;
+	 order by ts desc
 ```
 
 ![Session Count](session_count.png)
+
+## Tuple Operations
+
+```
+SELECT
+  to_timestamp(begin_ts),
+  tup_returned,
+  tup_fetched,
+  tup_inserted,
+  tup_updated,
+  tup_deleted
+FROM
+  epg_stats.get_series_database_hist (
+    cast(
+      extract(
+        epoch
+        FROM
+          clock_timestamp()
+      ) AS bigint
+    ),
+    interval '24 hour'
+  )
+WHERE
+  datname = 'postgres'
+ORDER BY
+  begin_ts DESC;
+```
+
+![Tuple Operations](tuple_operations.png)
 
 ## Memory Usage
 
@@ -62,7 +91,6 @@ left join
 on
 	(psh.ts = bgh.begin_ts)
 order by ts desc
-;
 ```
 
 ![Memory Usage](memory_usage.png)
@@ -99,10 +127,42 @@ group by
 order by
 	ts,
 	mode,
-	granted;
+	granted
 ```
 
 ![Locks](locks.png)
+
+## DB wraparound
+
+```
+select
+	max(round(100 *(age(datfrozenxid)/ setting::numeric), 8)) as db_wraparound
+from
+	pg_database d
+cross join pg_settings s
+where
+	s.name = 'autovacuum_freeze_max_age';
+```
+
+![DB Wraparound](db_wraparound_current.png)
+
+## Table wraparound
+
+```
+select
+	round(100 * (max(age(relfrozenxid)) / s.setting::numeric), 8) as table_wraparound
+from
+	pg_class
+cross join pg_settings s
+where
+	s.name = 'autovacuum_freeze_max_age'
+	and
+	pg_class.relkind in ('r', 't')
+group by
+	s.setting
+```
+
+![Table wraparound](table_wraparound_current.png)
 
 ## Checkpointer
 
@@ -139,37 +199,8 @@ from
 	epg_stats.get_stat_bgwriter_hist(cast(extract(epoch from now()) as bigint),
 	'1 Day'::interval);
 ```
+
 ![Checkpointer](checkpointer.png)
-
-
-## Transaction Wraparound
-
-```
--- db wraparound
-select
-	max(round(100 *(age(datfrozenxid)/ setting::numeric), 8)) as db_wraparound
-from
-	pg_database d
-cross join pg_settings s
-where
-	s.name = 'autovacuum_freeze_max_age';
-
--- table wraparound
-select
-	round(100 * (max(age(relfrozenxid)) / s.setting::numeric), 8) as table_wraparound
-from
-	pg_class
-cross join pg_settings s
-where
-	s.name = 'autovacuum_freeze_max_age'
-	and
-	pg_class.relkind in ('r', 't')
-group by
-	s.setting
-```
-
-![Transaction Wraparound](transaction_wraparound.png)
-
 
 ## Top Wait Events
 
