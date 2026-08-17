@@ -4,7 +4,7 @@
 
 # Sample Dashboard 
 
-![Sample Dashboard](metabase-sample-dashboard.png)
+![Sample Dashboard](metabase-sample-dashboard-2.png)
 
 # Sample Reports and SQL
 
@@ -35,7 +35,7 @@ select
 	 order by ts desc
 ```
 
-![Session Count](session_count.png)
+![Session Count](session_count_2.png)
 
 ## Tuple Operations
 
@@ -64,7 +64,7 @@ ORDER BY
   begin_ts DESC;
 ```
 
-![Tuple Operations](tuple_operations.png)
+![Tuple Operations](tuple_operations_2.png)
 
 ## Memory Usage
 
@@ -93,7 +93,7 @@ on
 order by ts desc
 ```
 
-![Memory Usage](memory_usage.png)
+![Memory Usage](memory_usage_2.png)
 
 ## Cache Hit Ratio
 
@@ -107,7 +107,7 @@ where
 	datname = 'postgres';
 ```
 
-![Cache Hit Ratio](cache_hit_ratio.png)
+![Cache Hit Ratio](cache_hit_ratio_2.png)
 
 ## Locks
 
@@ -130,7 +130,7 @@ order by
 	granted
 ```
 
-![Locks](locks.png)
+![Locks](locks_2.png)
 
 ## DB wraparound
 
@@ -200,7 +200,7 @@ from
 	'1 Day'::interval);
 ```
 
-![Checkpointer](checkpointer.png)
+![Checkpointer](checkpoints_2.png)
 
 ## Top Wait Events
 
@@ -209,7 +209,7 @@ select
 	date_trunc('hour', to_timestamp(ts)),
 	wait_event_type,
 	wait_event,
-	count(*)
+	count(*) wait_count
 from
 	epg_stats.get_stat_activity_hist(cast(extract(epoch from clock_timestamp()) as bigint), interval '30 min' )
 where
@@ -223,7 +223,6 @@ group by
 order by
 	1 desc,
 	4 desc
-	;
 ```
 
 
@@ -245,7 +244,6 @@ where
 	n_live_tup+n_dead_tup > 0
 order by 5 desc
 limit 10
-	;
 ```
 
 
