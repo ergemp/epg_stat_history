@@ -162,6 +162,24 @@ where
 ## Filling up the repo
 In order to start filling up the repository run the ```call epg_stats.fill_meta();``` command. The more frequently you run, more granular information you can get, but this also means more data to gather and ends up space consumption. Every 30 minutes for filling the repository is enough for most of the cases. 
 
+## Filling up the activity
+Fast changing snapshot statistical tables, pg_stat_activity and pg_locks should be handled in a different manner. Unlike other pg_stat* tables these two tables are holding the current session information. For these tables ```call epg_stats.fill_activity()``` command. It is preferable to run this script in the background (or set up a service configuration) so the script can loop and wake up for every 10 seconds and fill the mentioned tables. 
+
+Check out "sh" directory. 
+
+## Sample cron jobs
+
+```
+*/30 * * * * /usr/bin/psql -d <database_name> -c "call epg_stats.fill_meta()" > /var/lib/pgsql/scripts/fill_meta.log 2>&1
+0 4 */1 * * /usr/bin/psql -d <database_name> -c "call epg_stats.delete_history('1 Day'::interval)" > /var/lib/pgsql/scripts/delete_history.log 2>&1
+```
+
+## Sample background jobs 
+
+```
+nohup ./run_fill_activity.sh &
+```
+
 ## Gathering the performance report
 To generate a report run the epg_stats.show_report procedure with the required parameters. 
 
